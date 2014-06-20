@@ -46,6 +46,7 @@ private:
 	my_fifo<struct CapContent>* _capContents_fifo;
 	Interaction_List _interactons;
 	ACE_Thread_Mutex _clientinfo_mutex;
+//	ACE_Thread_Mutex _cap_content_block_mutex;
 	int _quit;
 };
 

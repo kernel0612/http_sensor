@@ -67,8 +67,8 @@ struct oneInteraction
 
 struct CapContent               //捕获的两端内容
 {
-	char srvCnt[MAX_BUFF_SIZE];      
-	char cliCnt[MAX_BUFF_SIZE];
+	char srvCnt[512];      
+	char cliCnt[512];
 	unsigned int srvCntSize;
 	unsigned int cliCntSize;
 	char srvSrc[32];
