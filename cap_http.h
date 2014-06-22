@@ -45,10 +45,9 @@ private:
 private:
     static  ACE_Thread_Mutex _mutex;
 	static cap_http* _instance;
-	my_fifo<struct CapContent>* _capContents_fifo;
+	my_fifo<struct cap_content_block>* _capContents_fifo;
 	Interaction_List _interactons;
 	ACE_Thread_Mutex _clientinfo_mutex;
-//	ACE_Thread_Mutex _cap_content_block_mutex;
 	int _quit;
 	proc_capCnt_block* _pccb;
 };

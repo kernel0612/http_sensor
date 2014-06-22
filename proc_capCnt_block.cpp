@@ -14,9 +14,9 @@ proc_capCnt_block::~proc_capCnt_block(void)
 int proc_capCnt_block::append_block_to_proccess(struct cap_content_block& block,struct CapContent& outCap)
 {
 	my_ace_guard guard(_mutex);
-	_totalBlockNum=block.totalBlockNum;
-	_currBlockNum=block.currBlockNum;
-	if (block.currBlockNum==1)
+	_totalBlockNum=block.TotalBlockNum;
+	_currBlockNum=block.CurrBlockNum;
+	if (block.CurrBlockNum==1)
 	{
 		_nextBlockNum=1;
 	}
@@ -27,24 +27,32 @@ int proc_capCnt_block::append_block_to_proccess(struct cap_content_block& block,
 		{
 			//
 			vector<struct cap_content_block>::const_iterator coit=_capBlocks.begin();
-			memcpy(outCap.srvSrc,coit->srvSrc,32);
-			memcpy(outCap.srvDes,coit->srvDes,32);
-			outCap.srvSport=coit->srvSport;
-			outCap.srvDport=coit->srvDport;
-			outCap.srvHasCnt=coit->srvHasCnt;
-			memcpy(outCap.cliSrc,coit->cliSrc,32);
-			memcpy(outCap.cliDes,coit->cliDes,32);
-			outCap.cliSport=coit->cliSport;
-			outCap.cliDport=coit->cliDport;
-			outCap.cliHasCnt=coit->cliHasCnt;
-			for (;coit!=_capBlocks.end();++coit)
+			if (coit->type==CLIENT_CNT)
 			{
-				memcpy(outCap.srvCnt+outCap.srvCntSize,coit->srvCntBlock,coit->srvCntBlockSize);
-				outCap.srvCntSize+=coit->srvCntBlockSize;
-				memcpy(outCap.cliCnt+outCap.cliCntSize,coit->cliCntBlock,coit->cliCntBlockSize);
-				outCap.cliCntSize+=coit->cliCntBlockSize;
+				memcpy(outCap.cliSrc,coit->Src,32);
+				memcpy(outCap.cliDes,coit->Des,32);
+				outCap.cliSport=coit->Sport;
+				outCap.cliDport=coit->Dport;
+				outCap.cliHasCnt=1;
+				for (;coit!=_capBlocks.end();++coit)
+				{
+					memcpy(outCap.cliCnt+outCap.cliCntSize,coit->CntBlock,coit->CntBlockSize);
+					outCap.cliCntSize+=coit->CntBlockSize;
+				}
 			}
-
+			else if (coit->type==SERVER_CNT)
+			{
+				memcpy(outCap.srvSrc,coit->Src,32);
+				memcpy(outCap.srvDes,coit->Des,32);
+				outCap.srvSport=coit->Sport;
+				outCap.srvDport=coit->Dport;
+				outCap.srvHasCnt=1;
+				for (;coit!=_capBlocks.end();++coit)
+				{
+					memcpy(outCap.srvCnt+outCap.srvCntSize,coit->CntBlock,coit->CntBlockSize);
+					outCap.srvCntSize+=coit->CntBlockSize;
+				}
+			}
 			_capBlocks.clear();
 			return 0;
 		}

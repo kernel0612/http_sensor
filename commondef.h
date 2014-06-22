@@ -64,7 +64,11 @@ struct oneInteraction
 	struct oneInteraction* next;
 	struct oneInteraction* prev;
 };
-
+typedef enum
+{
+	CLIENT_CNT,
+	SERVER_CNT
+}CntType;
 struct CapContent               //捕获的两端内容
 {
 	char srvCnt[512];      
@@ -84,21 +88,14 @@ struct CapContent               //捕获的两端内容
 };
 struct cap_content_block
 {
-	char srvCntBlock[CAP_CONTENT_BLOCK_SIZE];   
-	char cliCntBlock[CAP_CONTENT_BLOCK_SIZE];
-	unsigned int srvCntBlockSize;
-	unsigned int cliCntBlockSize;
-	char srvSrc[32];
-	char srvDes[32];
-	char cliSrc[32];
-	char cliDes[32];
-	unsigned short srvSport;
-	unsigned short srvDport;
-	unsigned short cliSport;
-	unsigned short cliDport;   
-	unsigned short srvHasCnt;
-	unsigned short cliHasCnt;
-	unsigned short currBlockNum;
-	unsigned short totalBlockNum;
+	char CntBlock[CAP_CONTENT_BLOCK_SIZE];   
+	unsigned int CntBlockSize;
+	char Src[32];
+	char Des[32];
+	unsigned short Sport;
+	unsigned short Dport;   
+	CntType   type;
+	unsigned short CurrBlockNum;
+	unsigned short TotalBlockNum;
 };
 #endif
