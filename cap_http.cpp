@@ -2,7 +2,7 @@
 
 cap_http* cap_http::_instance=0;
 ACE_Thread_Mutex cap_http::_mutex;
-cap_http::cap_http(void):_capContents_fifo(new my_ringbuffbased_fifo<struct CapContent>(1000)),_quit(0)
+cap_http::cap_http(void):_capContents_fifo(new my_ringbuffbased_fifo<struct CapContent>(1000)),_pccb(new proc_capCnt_block),_quit(0)
 {
 	
 }
@@ -475,22 +475,27 @@ void cap_http::parse_content(void* args)
 	cap_http* ins=cap_http::get_instance();
 	ACE_Time_Value sleep_tv(0,5000);
 	struct CapContent cap;
+	struct cap_content_block  block;
 	int ret=0;
 	while(!ins->_quit)
 	{
-		/*ins->_capContents_fifo*/
 		memset(&cap,0,sizeof(struct CapContent));
+		memset(&block,0,sizeof(struct cap_content_block));
 		ret=ins->get_capContents_fifo()->pop_front(cap);
 		if (ret==0)
 		{
-			if (cap.cliHasCnt)
+			if (ins->get_proc_capCnt_block()->append_block_to_proccess(block,cap)==0)
 			{
-				ins->parse_client_data(cap.cliCnt,cap.cliCntSize,cap.cliSrc,cap.cliDes,cap.cliSport,cap.cliDport);
+				if (cap.cliHasCnt)
+				{
+					ins->parse_client_data(cap.cliCnt,cap.cliCntSize,cap.cliSrc,cap.cliDes,cap.cliSport,cap.cliDport);
+				}
+				if (cap.srvHasCnt)
+				{
+					ins->parse_server_data(cap.srvCnt,cap.srvCntSize,cap.srvSrc,cap.srvDes,cap.srvSport,cap.srvDport);
+				}
 			}
-			if (cap.srvHasCnt)
-			{
-				ins->parse_server_data(cap.srvCnt,cap.srvCntSize,cap.srvSrc,cap.srvDes,cap.srvSport,cap.srvDport);
-			}
+
 		}
 		if (ret==-1)
 		{
@@ -789,4 +794,7 @@ int cap_http::replace_str(char *sSrc, char *sMatchStr, char *sReplaceStr)   //Ìæ
 
 	return 0;
 }
-
+proc_capCnt_block* cap_http::get_proc_capCnt_block()
+{
+	return _pccb;
+}

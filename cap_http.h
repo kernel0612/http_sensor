@@ -5,6 +5,7 @@
 #include "my_berkeleyDBbased_fifo.h"
 #include "my_ringbuffbased_fifo.h"
 #include "ace/Thread_Manager.h"
+#include "proc_capCnt_block.h"
 //#include "nids.h"
 //#include "uuid/uuid.h"
 //#include "zlib.h"
@@ -25,6 +26,7 @@ public:
 	void parse_server_data(char content[], int number,char saddr[],char daddr[],unsigned short sport,unsigned short dport);
 	void parse_client_data(char content[], int number,char saddr[],char daddr[],unsigned short sport,unsigned short dport);
 	my_fifo<struct CapContent>* get_capContents_fifo();
+	proc_capCnt_block* get_proc_capCnt_block();
 	static void destroy_instance();
     void create_thread(unsigned int n);
 private:
@@ -48,6 +50,7 @@ private:
 	ACE_Thread_Mutex _clientinfo_mutex;
 //	ACE_Thread_Mutex _cap_content_block_mutex;
 	int _quit;
+	proc_capCnt_block* _pccb;
 };
 
 #endif
