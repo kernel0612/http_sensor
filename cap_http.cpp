@@ -2,7 +2,8 @@
 
 cap_http* cap_http::_instance=0;
 ACE_Thread_Mutex cap_http::_mutex;
-cap_http::cap_http(void):_capContents_fifo(new my_berkeleyDBbased_fifo<struct cap_content_block>()),_pccb(new proc_capCnt_block),_quit(0)
+cap_http::cap_http(void):_capContents_fifo(new my_berkeleyDBbased_fifo<struct cap_content_block>())
+	,_pccb(new proc_capCnt_block),_quit(0),_reactor(&_select_reactor),_interactons(&_reactor)
 {
 	
 }
@@ -16,6 +17,9 @@ int cap_http::init()
 	//ret=nids_init();
 	get_capContents_fifo()->init();
 	cout <<"init()"<<endl;
+	th=new TimeOut_Handler(0,5,&_reactor);
+	th1=new TimeOut_Handler(0,6,&_reactor);
+	th2=new TimeOut_Handler(0,7,&_reactor);
 	return ret;
 }
 int cap_http::run()
@@ -39,12 +43,13 @@ void cap_http::register_tcp(void(*p))
 
 void http_protocol_callback(struct tcp_stream *tcp_http_connection, void **param)
 {
-	//cap_http* ins=cap_http::get_instance();
-	//char address_content[1024];
-	//char saddr[32];
-	//char daddr[32];
-	//unsigned short sport;
-	//unsigned short dport;
+	cap_http* ins=cap_http::get_instance();
+	struct oneInteraction* interaction=0;
+	char address_content[1024];
+	char saddr[32];
+	char daddr[32];
+	unsigned short sport;
+	unsigned short dport;
 	//struct tuple4 ip_and_port = tcp_http_connection->addr;
 	//strcpy(saddr,inet_ntoa(*((struct in_addr*) &(ip_and_port.saddr))));
 	//strcpy(daddr,inet_ntoa(*((struct in_addr*) &(ip_and_port.daddr))));
@@ -67,10 +72,20 @@ void http_protocol_callback(struct tcp_stream *tcp_http_connection, void **param
 	//}
 	//if (tcp_http_connection->nids_state == NIDS_CLOSE)
 	//{
+	//	interaction=ins->get_interaction_list().get_matched_interaction(saddr,daddr,sport);
+	//	if (interaction)
+	//	{
+	//		interaction->status=INTERACTION_CLOSE;
+	//	}	
 	//	return ;
 	//}
 	//if (tcp_http_connection->nids_state == NIDS_RESET)
 	//{
+	//	interaction=ins->get_interaction_list().get_matched_interaction(saddr,daddr,sport);
+	//	if (interaction)
+	//	{
+	//		interaction->status=INTERACTION_RESET;
+	//	}	
 	//	return ;
 	//}
 	//if (tcp_http_connection->nids_state == NIDS_DATA)
@@ -261,6 +276,8 @@ void cap_http::parse_client_data(char content[], int number,char saddr[],char da
 	unsigned short sport,unsigned short dport)
 {
 	struct clientInfo* client=0;
+	struct oneInteraction* interaction=0;
+	TimeOut_Handler *th=0;
 	char temp[MAX_BUFF_SIZE]={0};
 	int i=0;
 	int k=0;
@@ -279,14 +296,25 @@ void cap_http::parse_client_data(char content[], int number,char saddr[],char da
 	int continued=0;
 	int writeLen=0;
 	int extract_chunk_ret=0;
-
-	client=_interactons.getMatchedClient(saddr,daddr,sport);
+	interaction=_interactons.get_matched_interaction(saddr,daddr,sport);
+	if (!interaction)
+	{
+		return;
+	}
+	client=interaction->client;
     //set filter
 	//set filter
 	if (!client)
 	{
 		return;
 	}
+	//
+	th=_interactons.get_matched_timeout_handler(interaction);
+	if (th)
+	{
+		th->cancel_timer();
+	}
+	//
 	//-----------------------------------------------------------
 
 	if (number<4)
@@ -503,12 +531,20 @@ void cap_http::parse_content(void* args)
 		//ACE_OS::sleep(sleep_tv);
 	}
 }
-void cap_http::create_thread(unsigned int n)
+int cap_http::create_thread(unsigned int n)
 {
-	ACE_Thread_Manager::instance()->spawn_n(n,(ACE_THR_FUNC)parse_content,0);
+	return ACE_Thread_Manager::instance()->spawn_n(n,(ACE_THR_FUNC)parse_content,0);
 	//ACE_Thread_Manager::instance()->wait();
 }
-
+int cap_http::run_ace_event_loop()
+{
+	return ACE_Thread_Manager::instance()->spawn((ACE_THR_FUNC)handle_ace_event,&_reactor);
+	//return ACE_Thread_Manager::instance()->wait();
+}
+int cap_http::run_output_loop()
+{
+	return ACE_Thread_Manager::instance()->spawn((ACE_THR_FUNC)output_interaction_data,0);
+}
 int cap_http::create_one_interaction(struct oneInteraction** one)
 {
 	if (!one)
@@ -522,6 +558,7 @@ int cap_http::create_one_interaction(struct oneInteraction** one)
 		(*one)->server=new struct serverInfo;
 		memset((*one)->client,0,sizeof(struct clientInfo));
 		memset((*one)->server,0,sizeof(struct serverInfo));
+		(*one)->status=INTERACTION_NORMAL;
 	}
 	catch (...)
 	{
@@ -792,4 +829,28 @@ int cap_http::replace_str(char *sSrc, char *sMatchStr, char *sReplaceStr)   //Ìæ
 proc_capCnt_block* cap_http::get_proc_capCnt_block()
 {
 	return _pccb;
+}
+Interaction_List& cap_http::get_interaction_list()
+{
+	return _interactons;
+}
+
+void cap_http::handle_ace_event(void* args)
+{
+	//cap_http* ins=cap_http::get_instance();
+	//ACE_Time_Value sleep_val(0,5000);
+	ACE_Reactor* reactor=(ACE_Reactor*)args;
+	reactor->owner(ACE_OS::thr_self());
+	reactor->run_reactor_event_loop();
+	cout <<"handle_ace_event quit"<<endl;
+}
+void cap_http::output_interaction_data(void* args)
+{
+	cap_http* ins=cap_http::get_instance();
+	ACE_Time_Value sleep_val(0,5000);
+	while(!ins->_quit)
+	{
+		
+		ACE_OS::sleep(sleep_val);
+	}
 }

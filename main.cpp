@@ -20,14 +20,14 @@ void get_size(void* arg)
 int i=0;
 void prod(void* arg)
 {
-	my_fifo<struct CapContent>* fifo=(my_fifo<struct CapContent>*)arg;
-	struct CapContent cons;
+	my_fifo<struct cap_content_block>* fifo=(my_fifo<struct cap_content_block>*)arg;
+	struct cap_content_block cons;
 	ACE_Time_Value sleepTime(0,5000);
 	int ret=0;
 	while(1)
 	{
-		memset(&cons,0,sizeof(struct CapContent));
-		cons.srvSport=i;
+		memset(&cons,0,sizeof(struct cap_content_block));
+		cons.Sport=i;
 		if (ret=fifo->push_back(cons)!=0)
 		{
 			printf("push_back error\n");
@@ -44,8 +44,8 @@ void prod(void* arg)
 }
 void cons(void* arg)
 {
-	my_fifo<struct CapContent>* fifo=(my_fifo<struct CapContent>*)arg;
-	struct CapContent content;
+	my_fifo<struct cap_content_block>* fifo=(my_fifo<struct cap_content_block>*)arg;
+	struct cap_content_block content;
 	ACE_Time_Value sleepTime(0,50000);
 	int ret=0;
 	while(1)
@@ -53,7 +53,7 @@ void cons(void* arg)
 		memset(&content,0,sizeof(content));
 		if (ret=fifo->pop_front(content)==0)
 		{
-			printf("%d\n",content.srvSport);
+			printf("%d\n",content.Sport);
 		}
 		else if(ret==1)
 		{
@@ -67,42 +67,34 @@ void cons(void* arg)
 int main(int argc,char** argv)
 {
 
-	my_fifo<struct CapContent>* fifo=new my_berkeleyDBbased_fifo<struct CapContent>(1000);
-	if (fifo->init()!=0)
-	{
-		delete fifo;
-		system("pause");
-		return 0;
-	}
-	//ACE_Thread_Manager::instance()->spawn((ACE_THR_FUNC)prod,(void*)fifo);
-	//ACE_Thread_Manager::instance()->spawn((ACE_THR_FUNC)prod,(void*)fifo);
-	ACE_Thread_Manager::instance()->spawn((ACE_THR_FUNC)prod,(void*)fifo);
-	ACE_Thread_Manager::instance()->spawn((ACE_THR_FUNC)cons,(void*)fifo);
-	ACE_Thread_Manager::instance()->spawn((ACE_THR_FUNC)cons,(void*)fifo);
-	ACE_Thread_Manager::instance()->spawn((ACE_THR_FUNC)cons,(void*)fifo);
-	ACE_Thread_Manager::instance()->spawn((ACE_THR_FUNC)cons,(void*)fifo);
-	ACE_Thread_Manager::instance()->spawn((ACE_THR_FUNC)cons,(void*)fifo);
-	ACE_Thread_Manager::instance()->spawn((ACE_THR_FUNC)cons,(void*)fifo);
-	//ACE_Thread_Manager::instance()->spawn((ACE_THR_FUNC)get_size,(void*)fifo);
-	ACE_Thread_Manager::instance()->wait();
-
-	delete fifo;
-
-
-	//cap_http* ins=cap_http::get_instance();
-	//ins->init();
-	//ins->create_thread(5);
-	//
-
-	//TimeOut_Handler* th=new TimeOut_Handler(5);
-	//TimeOut_Handler* th1=new TimeOut_Handler(6);
-	//TimeOut_Handler* th2=new TimeOut_Handler(7);
-	//th2->cancel_timer();
-	//while(1)
+	//my_fifo<struct cap_content_block>* fifo=new my_berkeleyDBbased_fifo<struct cap_content_block>(1000);
+	//if (fifo->init()!=0)
 	//{
- //       ACE_Reactor::instance()->handle_events();
+	//	delete fifo;
+	//	system("pause");
+	//	return 0;
 	//}
-	//cap_http::destroy_instance();
+
+	//ACE_Thread_Manager::instance()->spawn((ACE_THR_FUNC)prod,(void*)fifo);
+	//ACE_Thread_Manager::instance()->spawn((ACE_THR_FUNC)cons,(void*)fifo);
+	//ACE_Thread_Manager::instance()->spawn((ACE_THR_FUNC)cons,(void*)fifo);
+	//ACE_Thread_Manager::instance()->spawn((ACE_THR_FUNC)cons,(void*)fifo);
+	//ACE_Thread_Manager::instance()->spawn((ACE_THR_FUNC)cons,(void*)fifo);
+	//ACE_Thread_Manager::instance()->spawn((ACE_THR_FUNC)cons,(void*)fifo);
+	//ACE_Thread_Manager::instance()->spawn((ACE_THR_FUNC)cons,(void*)fifo);
+	//ACE_Thread_Manager::instance()->wait();
+
+	//delete fifo;
+
+
+	cap_http* ins=cap_http::get_instance();
+	ins->init();
+	ins->run_ace_event_loop();
+	while(1)
+	{
+		ACE_OS::sleep(5);
+	}
+	cap_http::destroy_instance();
 	system("pause");
 	return 0;
 };

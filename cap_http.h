@@ -28,11 +28,16 @@ public:
 	my_fifo<struct cap_content_block>* get_capContents_fifo();
 	proc_capCnt_block* get_proc_capCnt_block();
 	static void destroy_instance();
-    void create_thread(unsigned int n);
+	Interaction_List& get_interaction_list();
+    int create_thread(unsigned int n);
+	int run_ace_event_loop();
+	int run_output_loop();
 private:
 	~cap_http(void);
 	
 	static void parse_content(void* args);
+	static void handle_ace_event(void* args);
+	static void output_interaction_data(void* args);
 	int create_one_interaction(struct oneInteraction** one);
 	int init_request_interaction(struct oneInteraction* pinter,char request[],char src[],char des[],unsigned short 
 		sport,unsigned short dport);
@@ -43,6 +48,8 @@ private:
 	//int httpgzdecompress(Byte *zdata, uLong nzdata, Byte *data, uLong *ndata);
 	int replace_str(char *sSrc, char *sMatchStr, char *sReplaceStr);
 private:
+	ACE_Select_Reactor _select_reactor;
+	ACE_Reactor _reactor;
     static  ACE_Thread_Mutex _mutex;
 	static cap_http* _instance;
 	my_fifo<struct cap_content_block>* _capContents_fifo;
@@ -50,6 +57,10 @@ private:
 	ACE_Thread_Mutex _clientinfo_mutex;
 	int _quit;
 	proc_capCnt_block* _pccb;
+	TimeOut_Handler* th;
+	TimeOut_Handler* th1;
+	TimeOut_Handler* th2;
+	
 };
 
 #endif

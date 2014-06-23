@@ -1,6 +1,6 @@
 #include "Interaction_List.h"
 
-Interaction_List::Interaction_List(void)
+Interaction_List::Interaction_List(ACE_Reactor* reactor):_reactor(reactor)
 {
 }
 
@@ -17,6 +17,9 @@ int Interaction_List::put(struct oneInteraction * p)
 	}
 	my_ace_guard  guard(_mutex);
 	_interractions.push_back(p);
+	TimeOut_Handler *th=new TimeOut_Handler(p,10,_reactor);
+	//_timeout_handles.push_back(th);
+	_ITmap.insert(make_pair(p,th));
 	++_count;
 	return 0;
 }
@@ -61,7 +64,7 @@ unsigned int Interaction_List::get_list_size()
 	return _count;
 }
 
-struct clientInfo* Interaction_List::getMatchedClient(char saddr[],char daddr[],unsigned short sPort)
+struct oneInteraction* Interaction_List::get_matched_interaction(char saddr[],char daddr[],unsigned short sPort)
 {
 	if (!saddr||!daddr)
 	{
@@ -70,15 +73,31 @@ struct clientInfo* Interaction_List::getMatchedClient(char saddr[],char daddr[],
 	list<struct oneInteraction*>::const_reverse_iterator crit;
 	struct oneInteraction* one=0;
 	my_ace_guard  guard(_mutex);
-	
+
 	for (crit=_interractions.rbegin();crit!=_interractions.rend();++crit)
 	{
 		one=(*crit);
 		if (one->server->srcPort==sPort&&strcmp(one->server->src,saddr)==0
 			&&strcmp(one->server->des,daddr)==0)
 		{
-			return one->client;
+			if (one->status==INTERACTION_NORMAL)
+			{
+				return one;
+			}	
 		}
 	}
 	return 0;
+}
+TimeOut_Handler* Interaction_List::get_matched_timeout_handler(struct oneInteraction* interaction)
+{
+	my_ace_guard  guard(_mutex);
+	TimeOut_Handler* th=0;
+	map<struct oneInteraction*,TimeOut_Handler*>::const_iterator coit=_ITmap.find(interaction);
+	if (coit==_ITmap.end())
+	{
+		return 0;
+	}
+	th=coit->second;
+	_ITmap.erase(coit);
+	return th;
 }

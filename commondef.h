@@ -57,22 +57,28 @@ struct clientInfo
 	unsigned int currentSize;
 	unsigned int lackChunkedSize;
 };
+typedef enum 
+{
+	INTERACTION_NORMAL=1,
+	INTERACTION_TIMEOUT,
+	INTERACTION_RESET,
+	INTERACTION_CLOSE
+}interaction_status;
 struct oneInteraction
 {
 	struct serverInfo* server;
 	struct clientInfo* client;
-	struct oneInteraction* next;
-	struct oneInteraction* prev;
+	interaction_status status;
 };
 typedef enum
 {
-	CLIENT_CNT,
+	CLIENT_CNT=1,
 	SERVER_CNT
 }CntType;
 struct CapContent               //捕获的两端内容
 {
-	char srvCnt[512];      
-	char cliCnt[512];
+	char srvCnt[MAX_BUFF_SIZE];      
+	char cliCnt[MAX_BUFF_SIZE];
 	unsigned int srvCntSize;
 	unsigned int cliCntSize;
 	char srvSrc[32];
