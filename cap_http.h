@@ -25,7 +25,7 @@ public:
 	static cap_http* get_instance();
 	void parse_server_data(char content[], int number,char saddr[],char daddr[],unsigned short sport,unsigned short dport);
 	void parse_client_data(char content[], int number,char saddr[],char daddr[],unsigned short sport,unsigned short dport);
-	my_fifo<struct CapContent>* get_capContents_fifo();
+	my_fifo<struct cap_content_block>* get_capContents_fifo();
 	proc_capCnt_block* get_proc_capCnt_block();
 	static void destroy_instance();
     void create_thread(unsigned int n);

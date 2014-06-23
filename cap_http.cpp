@@ -39,85 +39,85 @@ void cap_http::register_tcp(void(*p))
 
 void http_protocol_callback(struct tcp_stream *tcp_http_connection, void **param)
 {
-	cap_http* ins=cap_http::get_instance();
-	char address_content[1024];
-	char saddr[32];
-	char daddr[32];
-	unsigned short sport;
-	unsigned short dport;
-	struct tuple4 ip_and_port = tcp_http_connection->addr;
-	strcpy(saddr,inet_ntoa(*((struct in_addr*) &(ip_and_port.saddr))));
-	strcpy(daddr,inet_ntoa(*((struct in_addr*) &(ip_and_port.daddr))));
-	sport=ip_and_port.source;
-	dport=ip_and_port.dest;
-	
-	unsigned int blockNum=0;
-	unsigned int writebegin=0;
-	unsigned int currBlockSize=0;
+	//cap_http* ins=cap_http::get_instance();
+	//char address_content[1024];
+	//char saddr[32];
+	//char daddr[32];
+	//unsigned short sport;
+	//unsigned short dport;
+	//struct tuple4 ip_and_port = tcp_http_connection->addr;
+	//strcpy(saddr,inet_ntoa(*((struct in_addr*) &(ip_and_port.saddr))));
+	//strcpy(daddr,inet_ntoa(*((struct in_addr*) &(ip_and_port.daddr))));
+	//sport=ip_and_port.source;
+	//dport=ip_and_port.dest;
+	//
+	//unsigned int blockNum=0;
+	//unsigned int writebegin=0;
+	//unsigned int currBlockSize=0;
 
-	if (tcp_http_connection->nids_state == NIDS_JUST_EST)
-	{
-		if (tcp_http_connection->addr.dest != 80)
-		{
-			return ;
-		}
-		tcp_http_connection->client.collect++; 
-		tcp_http_connection->server.collect++; 
-		return ;
-	}
-	if (tcp_http_connection->nids_state == NIDS_CLOSE)
-	{
-		return ;
-	}
-	if (tcp_http_connection->nids_state == NIDS_RESET)
-	{
-		return ;
-	}
-	if (tcp_http_connection->nids_state == NIDS_DATA)
-	{
-		struct half_stream *hlf;
-		if (tcp_http_connection->client.count_new)
-		{
-			struct cap_content_block block;
-			memset(&block,0,sizeof(struct cap_content_block));
-			hlf = &tcp_http_connection->client;	
-			memcpy(block.Src,saddr,32);
-			memcpy(block.Des,daddr,32);
-			block.Sport=sport;
-			block.Dport=dport;
-			block.type=CLIENT_CNT;
-			blockNum=(hlf->count_new/CAP_CONTENT_BLOCK_SIZE)+(hlf->count_new%CAP_CONTENT_BLOCK_SIZE==0?0:1);
-			for (int i=1;i<=blockNum;i++)
-			{
-				currBlockSize=i<blockNum?(CAP_CONTENT_BLOCK_SIZE):(hlf->count_new-(blockNum-1)*CAP_CONTENT_BLOCK_SIZE);
-				memcpy(block.CntBlock,hlf->data+writebegin,currBlockSize);
-				writebegin+=CAP_CONTENT_BLOCK_SIZE;
-				ins->get_capContents_fifo()->push_back(block);
-			}
+	//if (tcp_http_connection->nids_state == NIDS_JUST_EST)
+	//{
+	//	if (tcp_http_connection->addr.dest != 80)
+	//	{
+	//		return ;
+	//	}
+	//	tcp_http_connection->client.collect++; 
+	//	tcp_http_connection->server.collect++; 
+	//	return ;
+	//}
+	//if (tcp_http_connection->nids_state == NIDS_CLOSE)
+	//{
+	//	return ;
+	//}
+	//if (tcp_http_connection->nids_state == NIDS_RESET)
+	//{
+	//	return ;
+	//}
+	//if (tcp_http_connection->nids_state == NIDS_DATA)
+	//{
+	//	struct half_stream *hlf;
+	//	if (tcp_http_connection->client.count_new)
+	//	{
+	//		struct cap_content_block block;
+	//		memset(&block,0,sizeof(struct cap_content_block));
+	//		hlf = &tcp_http_connection->client;	
+	//		memcpy(block.Src,saddr,32);
+	//		memcpy(block.Des,daddr,32);
+	//		block.Sport=sport;
+	//		block.Dport=dport;
+	//		block.type=CLIENT_CNT;
+	//		blockNum=(hlf->count_new/CAP_CONTENT_BLOCK_SIZE)+(hlf->count_new%CAP_CONTENT_BLOCK_SIZE==0?0:1);
+	//		for (int i=1;i<=blockNum;i++)
+	//		{
+	//			currBlockSize=i<blockNum?(CAP_CONTENT_BLOCK_SIZE):(hlf->count_new-(blockNum-1)*CAP_CONTENT_BLOCK_SIZE);
+	//			memcpy(block.CntBlock,hlf->data+writebegin,currBlockSize);
+	//			writebegin+=CAP_CONTENT_BLOCK_SIZE;
+	//			ins->get_capContents_fifo()->push_back(block);
+	//		}
 
-		}
-		if (tcp_http_connection->server.count_new)
-		{
-			struct cap_content_block block;
-			memset(&block,0,sizeof(struct cap_content_block));
-			hlf = &tcp_http_connection->server;       
-			memcpy(block.Src,saddr,32);
-			memcpy(block.Des,daddr,32);
-			block.Sport=sport;
-			block.Dport=dport;
-			block.type=SERVER_CNT;
-			blockNum=(hlf->count_new/CAP_CONTENT_BLOCK_SIZE)+(hlf->count_new%CAP_CONTENT_BLOCK_SIZE==0?0:1);
-			for (int i=1;i<=blockNum;i++)
-			{
-				currBlockSize=i<blockNum?(CAP_CONTENT_BLOCK_SIZE):(hlf->count_new-(blockNum-1)*CAP_CONTENT_BLOCK_SIZE);
-				memcpy(block.CntBlock,hlf->data+writebegin,currBlockSize);
-				writebegin+=CAP_CONTENT_BLOCK_SIZE;
-				ins->get_capContents_fifo()->push_back(block);
-			}
-		}
-	}
+	//	}
+	//	if (tcp_http_connection->server.count_new)
+	//	{
+	//		struct cap_content_block block;
+	//		memset(&block,0,sizeof(struct cap_content_block));
+	//		hlf = &tcp_http_connection->server;       
+	//		memcpy(block.Src,saddr,32);
+	//		memcpy(block.Des,daddr,32);
+	//		block.Sport=sport;
+	//		block.Dport=dport;
+	//		block.type=SERVER_CNT;
+	//		blockNum=(hlf->count_new/CAP_CONTENT_BLOCK_SIZE)+(hlf->count_new%CAP_CONTENT_BLOCK_SIZE==0?0:1);
+	//		for (int i=1;i<=blockNum;i++)
+	//		{
+	//			currBlockSize=i<blockNum?(CAP_CONTENT_BLOCK_SIZE):(hlf->count_new-(blockNum-1)*CAP_CONTENT_BLOCK_SIZE);
+	//			memcpy(block.CntBlock,hlf->data+writebegin,currBlockSize);
+	//			writebegin+=CAP_CONTENT_BLOCK_SIZE;
+	//			ins->get_capContents_fifo()->push_back(block);
+	//		}
+	//	}
+	//}
 }
-my_fifo<struct CapContent>* cap_http::get_capContents_fifo()
+my_fifo<struct cap_content_block>* cap_http::get_capContents_fifo()
 {
 	return _capContents_fifo;
 }
@@ -476,7 +476,7 @@ void cap_http::parse_content(void* args)
 	{
 		memset(&cap,0,sizeof(struct CapContent));
 		memset(&block,0,sizeof(struct cap_content_block));
-		ret=ins->get_capContents_fifo()->pop_front(cap);
+		ret=ins->get_capContents_fifo()->pop_front(block);
 		if (ret==0)
 		{
 			if (ins->get_proc_capCnt_block()->append_block_to_proccess(block,cap)==0)
