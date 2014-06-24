@@ -16,12 +16,21 @@ public:
 	virtual int push_back(T content);
 	virtual int pop_front(T& content);
 
+	int disabled();
+	int enabled();
+
 private:
 	my_berkeleyDB  _db;
 	char key[16];
+	typedef enum
+	{
+		ENABLED,
+		DISABLED
+	}STATUS;
+	STATUS _status;
 };
 template<typename T>
-my_berkeleyDBbased_fifo<T>::my_berkeleyDBbased_fifo(unsigned long size):my_fifo<T>(size)
+my_berkeleyDBbased_fifo<T>::my_berkeleyDBbased_fifo(unsigned long size):my_fifo<T>(size),_status(ENABLED)
 {
 
 }
@@ -37,7 +46,7 @@ int my_berkeleyDBbased_fifo<T>::init()
 template<typename T>
 int my_berkeleyDBbased_fifo<T>::push_back(T content)
 {	
-	ACE_Time_Value time_out_v=ACE_Time_Value(5)+ACE_OS::gettimeofday();
+	//ACE_Time_Value time_out_v=ACE_Time_Value(5)+ACE_OS::gettimeofday();
     int ret=0;
 	my_ace_guard guard(this->mutex);	
 
@@ -48,6 +57,14 @@ int my_berkeleyDBbased_fifo<T>::push_back(T content)
 		{
 			return 1;
 		}
+		if (this->_status==this->DISABLED)
+		{
+			return 1;
+		}
+	}
+	if (this->_status==this->DISABLED)
+	{
+		return 1;
 	}
 	if (_db.put(&content,sizeof(T))==0)
 	{
@@ -64,7 +81,7 @@ int my_berkeleyDBbased_fifo<T>::push_back(T content)
 template<typename T>
 int my_berkeleyDBbased_fifo<T>::pop_front(T& content)
 {
-	ACE_Time_Value time_out_v=ACE_Time_Value(5)+ACE_OS::gettimeofday();
+	//ACE_Time_Value time_out_v=ACE_Time_Value(5)+ACE_OS::gettimeofday();
 	T* p=0;
 	int size=0;
 	int ret=0;
@@ -77,6 +94,14 @@ int my_berkeleyDBbased_fifo<T>::pop_front(T& content)
 		{
 			return 1;
 		}
+		if (this->_status==this->DISABLED)
+		{
+			return 1;
+		}
+	}
+	if (this->_status==this->DISABLED)
+	{
+		return 1;
 	}
 	if (_db.get((void**)&p,&size)==0)
 	{
@@ -91,6 +116,22 @@ int my_berkeleyDBbased_fifo<T>::pop_front(T& content)
 	}
 
 	return -1;
+}
+template<typename T>
+int my_berkeleyDBbased_fifo<T>::disabled()
+{
+	my_ace_guard guard(this->mutex);
+	this->_status=this->DISABLED;
+	this->condNotempty.broadcast();
+	this->condNotfull.broadcast();
+	return 0;
+}
+template<typename T>
+int my_berkeleyDBbased_fifo<T>::enabled()
+{
+	my_ace_guard guard(this->mutex);
+	this->_status=this->ENABLED;
+	return 0;
 }
 
 #endif

@@ -3,7 +3,7 @@
 cap_http* cap_http::_instance=0;
 ACE_Thread_Mutex cap_http::_mutex;
 cap_http::cap_http(void):_capContents_fifo(new my_berkeleyDBbased_fifo<struct cap_content_block>())
-	,_pccb(new proc_capCnt_block),_quit(0),_reactor(&_select_reactor),_interactons(&_reactor)
+	,_pccb(new proc_capCnt_block),_quit(0),_reactor(&_select_reactor)
 {
 	
 }
@@ -15,7 +15,7 @@ int cap_http::init()
 {
 	int ret=0;
 	//ret=nids_init();
-	get_capContents_fifo()->init();
+	ret=get_capContents_fifo()->init();
 	cout <<"init()"<<endl;
 	th=new TimeOut_Handler(0,5,&_reactor);
 	th1=new TimeOut_Handler(0,6,&_reactor);
@@ -25,8 +25,12 @@ int cap_http::init()
 int cap_http::run()
 {
    int ret=0;
-  // ret=nids_run();
-   cout<<"run()"<<endl;
+   run_ace_event_loop();
+   run_nids_cap_loop();
+   run_output_loop();
+   run_parse_content_loop();
+   run_monitor_thread();
+   ACE_Thread_Manager::instance()->wait();
    return ret;
 }
 
@@ -34,7 +38,9 @@ void cap_http::exit()
 {
 	//nids_exit();
 	_quit=1;
-	cout <<"exit()"<<endl;
+	_reactor.end_reactor_event_loop();
+	_interactons.disabled();
+	get_capContents_fifo()->disabled();
 }
 void cap_http::register_tcp(void(*p))
 {
@@ -44,7 +50,7 @@ void cap_http::register_tcp(void(*p))
 void http_protocol_callback(struct tcp_stream *tcp_http_connection, void **param)
 {
 	cap_http* ins=cap_http::get_instance();
-	struct oneInteraction* interaction=0;
+	interaction* intern=0;
 	char address_content[1024];
 	char saddr[32];
 	char daddr[32];
@@ -72,20 +78,20 @@ void http_protocol_callback(struct tcp_stream *tcp_http_connection, void **param
 	//}
 	//if (tcp_http_connection->nids_state == NIDS_CLOSE)
 	//{
-	//	interaction=ins->get_interaction_list().get_matched_interaction(saddr,daddr,sport);
-	//	if (interaction)
-	//	{
-	//		interaction->status=INTERACTION_CLOSE;
-	//	}	
+	intern=ins->get_interaction_list().get_matched_interaction_m(saddr,daddr,sport);
+	if (intern)
+	{
+		intern->set_interactin_status(INTERACTION_CLOSE);
+	}	
 	//	return ;
 	//}
 	//if (tcp_http_connection->nids_state == NIDS_RESET)
 	//{
-	//	interaction=ins->get_interaction_list().get_matched_interaction(saddr,daddr,sport);
-	//	if (interaction)
-	//	{
-	//		interaction->status=INTERACTION_RESET;
-	//	}	
+	intern=ins->get_interaction_list().get_matched_interaction_m(saddr,daddr,sport);
+	if (intern)
+	{
+		intern->set_interactin_status(INTERACTION_RESET);
+	}	
 	//	return ;
 	//}
 	//if (tcp_http_connection->nids_state == NIDS_DATA)
@@ -158,7 +164,7 @@ void cap_http::destroy_instance()
 void cap_http::parse_server_data(char content[], int number,char saddr[],char daddr[],
 	unsigned short sport,unsigned short dport)
 {
-	struct oneInteraction* pinter=0;
+	interaction* pinter=0;
 	struct serverInfo* serinfo=0;          
 	char temp[MAX_BUFF_SIZE]={0};
 	char* seg={0};
@@ -276,7 +282,7 @@ void cap_http::parse_client_data(char content[], int number,char saddr[],char da
 	unsigned short sport,unsigned short dport)
 {
 	struct clientInfo* client=0;
-	struct oneInteraction* interaction=0;
+	interaction* intern=0;
 	TimeOut_Handler *th=0;
 	char temp[MAX_BUFF_SIZE]={0};
 	int i=0;
@@ -296,25 +302,24 @@ void cap_http::parse_client_data(char content[], int number,char saddr[],char da
 	int continued=0;
 	int writeLen=0;
 	int extract_chunk_ret=0;
-	interaction=_interactons.get_matched_interaction(saddr,daddr,sport);
-	if (!interaction)
+	intern=_interactons.get_matched_interaction_m(saddr,daddr,sport);
+	if (!intern)
 	{
 		return;
 	}
-	client=interaction->client;
+	th=intern->get_timeout_handler();
+	if (th)
+	{
+		th->cancel_timer();
+	}
+	client=intern->get_client_info();
     //set filter
+
 	//set filter
 	if (!client)
 	{
 		return;
 	}
-	//
-	th=_interactons.get_matched_timeout_handler(interaction);
-	if (th)
-	{
-		th->cancel_timer();
-	}
-	//
 	//-----------------------------------------------------------
 
 	if (number<4)
@@ -365,6 +370,10 @@ void cap_http::parse_client_data(char content[], int number,char saddr[],char da
 							{
 								try
 								{
+									 if (contentSize>65535)
+									 {
+										 contentSize=65535;
+									 }
 									 pmalloc=new char[contentSize+1];
 									 memset(pmalloc,0,contentSize+1);
 								}
@@ -500,6 +509,7 @@ void cap_http::parse_content(void* args)
 	struct CapContent cap;
 	struct cap_content_block  block;
 	int ret=0;
+	ACE_DEBUG((LM_INFO,"parse content thread begin\n"));
 	while(!ins->_quit)
 	{
 		memset(&cap,0,sizeof(struct CapContent));
@@ -525,27 +535,35 @@ void cap_http::parse_content(void* args)
 		}
 		if (ret==1)
 		{
-			printf("wait not empty time out\n");
+			//printf("wait not empty time out\n");
 			break;
 		}
 		//ACE_OS::sleep(sleep_tv);
 	}
+    ACE_DEBUG((LM_INFO,"parse content thread quit\n"));
 }
-int cap_http::create_thread(unsigned int n)
+
+int cap_http::run_parse_content_loop()
 {
-	return ACE_Thread_Manager::instance()->spawn_n(n,(ACE_THR_FUNC)parse_content,0);
-	//ACE_Thread_Manager::instance()->wait();
+	return ACE_Thread_Manager::instance()->spawn_n(PARSE_CONTENT_THREAD_NUM,(ACE_THR_FUNC)parse_content,0);
 }
 int cap_http::run_ace_event_loop()
 {
 	return ACE_Thread_Manager::instance()->spawn((ACE_THR_FUNC)handle_ace_event,&_reactor);
-	//return ACE_Thread_Manager::instance()->wait();
 }
 int cap_http::run_output_loop()
 {
 	return ACE_Thread_Manager::instance()->spawn((ACE_THR_FUNC)output_interaction_data,0);
 }
-int cap_http::create_one_interaction(struct oneInteraction** one)
+int cap_http::run_nids_cap_loop()
+{
+	return ACE_Thread_Manager::instance()->spawn((ACE_THR_FUNC)nids_cap_loop,0);
+}
+int cap_http::run_monitor_thread()
+{
+	return ACE_Thread_Manager::instance()->spawn((ACE_THR_FUNC)monitor_thread,0);
+}
+int cap_http::create_one_interaction(interaction** one)
 {
 	if (!one)
 	{
@@ -553,26 +571,27 @@ int cap_http::create_one_interaction(struct oneInteraction** one)
 	}	
 	try
 	{
-		*one=new struct oneInteraction;
-		(*one)->client=new struct clientInfo;
-		(*one)->server=new struct serverInfo;
-		memset((*one)->client,0,sizeof(struct clientInfo));
-		memset((*one)->server,0,sizeof(struct serverInfo));
-		(*one)->status=INTERACTION_NORMAL;
+		*one=new interaction;
+		(*one)->set_server_info(new struct serverInfo);
+		(*one)->set_client_info(new struct clientInfo);
+		memset((*one)->get_client_info(),0,sizeof(struct clientInfo));
+		memset((*one)->get_server_info(),0,sizeof(struct serverInfo));
+		(*one)->set_interactin_status(INTERACTION_NORMAL);
+		(*one)->set_timeout_handler(new TimeOut_Handler(*one,10,&_reactor));
 	}
 	catch (...)
 	{
 		if (*one)
 		{
-			if ((*one)->client)
+			if ((*one)->get_client_info())
 			{
-				delete (*one)->client;
-				(*one)->client=0;
+				delete (*one)->get_client_info();
+				(*one)->set_client_info(0);
 			}
-			if ((*one)->server)
+			if ((*one)->get_server_info())
 			{
-				delete (*one)->server;
-				(*one)->server=0;
+				delete (*one)->get_server_info();
+				(*one)->set_server_info(0);
 			}
 			delete (*one);
 			*one=0;
@@ -582,24 +601,27 @@ int cap_http::create_one_interaction(struct oneInteraction** one)
 	return 0;
 }
 
-int cap_http::init_request_interaction(struct oneInteraction* pinter,char request[],char src[],char des[],unsigned short 
+int cap_http::init_request_interaction(interaction* pinter,char request[],char src[],char des[],unsigned short 
 	sport,unsigned short dport)
 {
 	if (!pinter||!request||!des)
 	{
 		return -1;
 	}
-	struct serverInfo* serinfo=0;          
+	struct serverInfo* serinfo=pinter->get_server_info();  
+	if (!serinfo)
+	{
+		return -1;
+	}
 	char method[32]={0};
 	char resource[10240]={0};
 	char httptype[32]={0};
 	unsigned int http_head_len=0;
 	unsigned int desAddr_len=0;
-	strncpy(pinter->server->src,src,strlen(src));
-	strncpy(pinter->server->des,des,strlen(des));
-	pinter->server->srcPort=sport;
-	pinter->server->desPort=dport;
-	serinfo=pinter->server;
+	strncpy(serinfo->src,src,strlen(src));
+	strncpy(serinfo->des,des,strlen(des));
+	serinfo->srcPort=sport;
+	serinfo->desPort=dport;
 	sscanf(request, "%s %s %s", method, resource, httptype);//分割为 GET  resource http/1.1 形式
 	strncpy(serinfo->method,method,my_min(strlen(method),METHOD_BUF_SIZE)-1);
 	http_head_len=strlen("http://");
@@ -611,15 +633,14 @@ int cap_http::init_request_interaction(struct oneInteraction* pinter,char reques
 	//my_uuid_generate(serinfo->requestID,64);
 	return 0;
 }
-unsigned int cap_http::my_min(unsigned int len1,unsigned len2)
+unsigned int cap_http::my_min(unsigned int len1,unsigned int len2)
 {
 	return len1<len2?len1:len2;
 }
-int cap_http::extract_chunked_data(char entity[],int number,int inLackNumber,int isContinued,
-	char** output,int& outlen,int &complete,int &outLackNum) //提取chunked方式的响应正文
+//提取chunked方式的响应正文
+int cap_http::extract_chunked_data(char entity[],int number,char* output,int inlen,int& outlen,int &complete) 
 {
 	int i=0,j=0,k=0,chunkedLen=0,contentLen=0;
-	char* temp=0;
 	char chunkedArr[32]={0};
 	char content[MAX_BUFF_SIZE]={0};
 	int client_content_len=0;
@@ -629,32 +650,7 @@ int cap_http::extract_chunked_data(char entity[],int number,int inLackNumber,int
 	{
 		return -1;
 	}
-	if (isContinued)
-	{
-		if (inLackNumber)
-		{
-			minSize= my_min(inLackNumber,number);
-			try
-			{
-				*output=new char[minSize+1];
-				memcpy(*output,entity,minSize);
-				client_content_len+=minSize;
-				outLackNum+=minSize;   
-			}
-			catch (...)
-			{
-				delete [] (*output);
-				*output=0;
-			}
-
-		}
-		i=(minSize+2);
-	}
-	else
-	{
-		i=0;
-	}
-	for (;i<number;i++)
+	for (i=0;i<number;i++)
 	{
 		if (i+1<number)
 		{
@@ -663,7 +659,6 @@ int cap_http::extract_chunked_data(char entity[],int number,int inLackNumber,int
 				contentLen=0;
 				memset(chunkedArr,0,32);
 				memset(content,0,MAX_BUFF_SIZE);
-				temp=0;
 				tmp_content_len=0;
 				memcpy(chunkedArr,entity+(i-chunkedLen),my_min(chunkedLen,31));		
 				chunkedLen=0;
@@ -672,53 +667,10 @@ int cap_http::extract_chunked_data(char entity[],int number,int inLackNumber,int
 				{
 					k=i+2;       //跳过\r\n找到正文部分
 					i+=(contentLen+2+1);  //+contenLen跳过正文转到下一段 +2 跳过\r\n +1跳过 \r forloop接着i++跳过\n
-					for (j=0;j<contentLen;j++)
-					{
-						if (j+k<number)
-						{
-							content[j]=entity[j+k];     //取出实体内容
-						}	
-						else
-						{
-							break;
-						}
-					}
-					content[j]='\0';
-					tmp_content_len=client_content_len;
-					if (temp)
-					{ 
-						delete []temp;
-						temp=0;
-					}				 
-					temp=new char[tmp_content_len+1];					
-					if (temp)
-					{
-						memcpy(temp,*output,tmp_content_len);
-						temp[tmp_content_len]='\0';
-						if (*output)
-						{
-							delete[](*output);
-							*output=0;
-						}					  
-						*output=new char[tmp_content_len+contentLen+1];				  
-						if (*output)
-						{
-							memset(*output,0,tmp_content_len+contentLen+1);
-							memcpy(*output,temp,tmp_content_len);
-							memcpy(*output+tmp_content_len,content,j);
-							(*output)[tmp_content_len+j]='\0';
-							client_content_len+=j;
-							outlen=client_content_len;
-							if (j<contentLen)       //一个chunked 不满
-							{
-								outLackNum=contentLen-j;         //chunked数据缺少的大小
-							}
-						}
-
-
-					}
-
-
+					memcpy(content,entity+k,minSize=my_min(number,contentLen));					  			  
+					memcpy(output+client_content_len,content,minSize=my_min(minSize,inlen-client_content_len));
+					client_content_len+=minSize;
+					outlen=client_content_len;		
 				}
 				else if(contentLen==0)
 				{
@@ -742,10 +694,6 @@ int cap_http::extract_chunked_data(char entity[],int number,int inLackNumber,int
 		}
 
 	}
-	if (temp)
-	{ 
-		delete []temp;
-	} 
 	return 0;
 }
 
@@ -840,17 +788,74 @@ void cap_http::handle_ace_event(void* args)
 	//cap_http* ins=cap_http::get_instance();
 	//ACE_Time_Value sleep_val(0,5000);
 	ACE_Reactor* reactor=(ACE_Reactor*)args;
+	 ACE_DEBUG((LM_INFO,"handle_ace_event thread begin\n"));
 	reactor->owner(ACE_OS::thr_self());
 	reactor->run_reactor_event_loop();
-	cout <<"handle_ace_event quit"<<endl;
+	 ACE_DEBUG((LM_INFO,"handle_ace_event thread quit\n"));
 }
 void cap_http::output_interaction_data(void* args)
 {
 	cap_http* ins=cap_http::get_instance();
 	ACE_Time_Value sleep_val(0,5000);
+	interaction * pinter=0;
+	struct serverInfo* psrv=0;
+	struct clientInfo* pclt=0;
+	ACE_DEBUG((LM_INFO,"output_interaction_data thread begin\n"));
+	int ret=0;
+	char tmpbuff[MAX_BUFF_SIZE*4]={0};
 	while(!ins->_quit)
 	{
-		
+		ret=ins->get_interaction_list().pop(&pinter);
+		if (ret==0)
+		{
+			psrv=pinter->get_server_info();
+			pclt=pinter->get_client_info();
+			if (psrv)
+			{
+				
+			}
+			if (pclt)
+			{
+				pclt->isChunked;
+			}
+
+		}
+		else if (ret==-1)
+		{
+		}
+		else if (ret==1)
+		{
+			break;
+		}
 		ACE_OS::sleep(sleep_val);
 	}
+	ACE_DEBUG((LM_INFO,"output_interaction_data thread quit\n"));
+}
+
+void cap_http::nids_cap_loop(void* args)
+{
+	cap_http* ins=cap_http::get_instance();
+	ACE_DEBUG((LM_INFO,"nids_cap_loop thread begin\n"));
+	int ret=0;
+	// ret=nids_run();
+	ACE_DEBUG((LM_INFO,"nids_cap_loop thread quit\n"));
+}
+void cap_http::monitor_thread(void* args)
+{
+	cap_http* ins=cap_http::get_instance();
+	ACE_DEBUG((LM_INFO,"monitor_thread begin\n"));
+	ACE_OS::sleep(3);
+	while(1)
+	{
+		ACE_DEBUG((LM_INFO,"type in 'q'to quit system\n"));
+		char c=getchar();
+		if (c=='q')
+		{
+			ins->exit();
+			break;
+		}
+		ACE_OS::sleep(2);
+	}
+	ACE_DEBUG((LM_INFO,"monitor_thread quit\n"));
+
 }

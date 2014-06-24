@@ -20,6 +20,8 @@
 #define  RESPONSEID_BUF_SIZE       64
 #define  DATE_BUF_SIZE             32
 #define  CAP_CONTENT_BLOCK_SIZE     512
+
+#define  PARSE_CONTENT_THREAD_NUM    10
 struct serverInfo 
 {
 	char cookie[COOKIE_BUF_SIZE];
@@ -64,12 +66,12 @@ typedef enum
 	INTERACTION_RESET,
 	INTERACTION_CLOSE
 }interaction_status;
-struct oneInteraction
-{
-	struct serverInfo* server;
-	struct clientInfo* client;
-	interaction_status status;
-};
+//struct oneInteraction
+//{
+//	struct serverInfo* server;
+//	struct clientInfo* client;
+//	interaction_status status;
+//};
 typedef enum
 {
 	CLIENT_CNT=1,

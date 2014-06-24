@@ -6,27 +6,36 @@
 #include <iostream>
 #include "my_ace_guard.h"
 #include "TimeOut_Handler.h"
+#include "interaction.h"
 using namespace std;
+
 class Interaction_List
 {
 public:
-	Interaction_List(ACE_Reactor* reactor);
+	Interaction_List();
 public:
 	~Interaction_List(void);
-     int put(struct oneInteraction * p);
-     int pop(struct oneInteraction** out);
      int clear();
 	 unsigned int get_list_size();
-	 struct oneInteraction* get_matched_interaction(char saddr[],char daddr[],unsigned short sPort);
-	 TimeOut_Handler* get_matched_timeout_handler(struct oneInteraction* interaction);
+	 int put(interaction* in);
+	 int pop(interaction** out);
+	 int flush();
+	 interaction* get_matched_interaction_m(char saddr[],char daddr[],unsigned short sPort);
+	 int disabled();
+	 int enabled();
 
 private:
 	unsigned int _count;
-	list<struct oneInteraction*> _interractions;
-	//list<TimeOut_Handler*> _timeout_handles;
-	map<struct oneInteraction*,TimeOut_Handler*> _ITmap;
 	ACE_Thread_Mutex  _mutex;
-	ACE_Reactor* _reactor;
+	list<interaction*> _inters;
+	ACE_Condition<ACE_Thread_Mutex> _notlessthan50;
+	typedef enum
+	{
+		ENABLED,
+		DISABLED
+	}STATUS;
+	STATUS _status;
+
 };
 
 

@@ -1,86 +1,105 @@
 #include "Interaction_List.h"
 
-Interaction_List::Interaction_List(ACE_Reactor* reactor):_reactor(reactor)
+Interaction_List::Interaction_List():_notlessthan50(_mutex),_status(ENABLED)
 {
 }
 
 Interaction_List::~Interaction_List(void)
 {
-
+	clear();
 }
 
-int Interaction_List::put(struct oneInteraction * p)
-{
-	if (!p)
-	{
-		return -1;
-	}
-	my_ace_guard  guard(_mutex);
-	_interractions.push_back(p);
-	TimeOut_Handler *th=new TimeOut_Handler(p,10,_reactor);
-	//_timeout_handles.push_back(th);
-	_ITmap.insert(make_pair(p,th));
-	++_count;
-	return 0;
-}
-int Interaction_List::pop(struct oneInteraction** out)  //调用方负责释放内存
-{
-	if (!out)
-	{
-		return -1;
-	}
-	my_ace_guard  guard(_mutex);
-	*out=(_interractions.front());
-	_interractions.pop_front();
-	--_count;
-	return -1;
-}
 int Interaction_List::clear()
 {
 	my_ace_guard  guard(_mutex);
-	list<struct oneInteraction*>::iterator it=_interractions.begin();
-	while(it!=_interractions.end())
+	list<interaction*>::iterator it=_inters.begin();
+	while(it!=_inters.end())
 	{
-		if ((*it)->client)
+		if ((*it)->get_client_info())
 		{
-			if ((*it)->client->content)
+			if ((*it)->get_client_info()->content)
 			{
-				delete [](*it)->client->content;
+				delete [](*it)->get_client_info()->content;
 			}
-			delete (*it)->client;
+			delete (*it)->get_client_info();
 		}
-		if ((*it)->server)
+		if ((*it)->get_server_info())
 		{
-			delete (*it)->server;
+			delete (*it)->get_server_info();
 		}
 		delete (*it);
-		it=_interractions.erase(it);
+		it=_inters.erase(it);
 	}
 	return -1;
 }
 unsigned int Interaction_List::get_list_size()
 {
 	my_ace_guard  guard(_mutex);
-	return _count;
+	return _inters.size();
 }
 
-struct oneInteraction* Interaction_List::get_matched_interaction(char saddr[],char daddr[],unsigned short sPort)
+int Interaction_List::put(interaction* in)
+{
+	if (!in)
+	{
+		return -1;
+	}
+	my_ace_guard  guard(_mutex);
+	if (_status==DISABLED)
+	{
+		return 1;
+	}
+	_inters.push_back(in);
+	if (_inters.size()>50)
+	{
+		_notlessthan50.signal();
+	}
+	return 0;
+}
+int Interaction_List::pop(interaction** out)
+{
+	if (!out)
+	{
+		return -1;
+	}
+	my_ace_guard  guard(_mutex);
+	while(_inters.size()<50)
+	{
+		_notlessthan50.wait();
+		if (_status==DISABLED)
+		{
+			return 1;
+		}
+	}
+	if (_status==DISABLED)
+	{
+		return 1;
+	}
+	*out=(_inters.front());
+	_inters.pop_front();
+	return 0;
+}
+int Interaction_List::flush()
+{
+	return -1;
+}
+interaction* Interaction_List::get_matched_interaction_m(char saddr[],char daddr[],unsigned short sPort)
 {
 	if (!saddr||!daddr)
 	{
 		return 0;
 	}
-	list<struct oneInteraction*>::const_reverse_iterator crit;
-	struct oneInteraction* one=0;
+	list<interaction*>::const_reverse_iterator crit;
+	interaction* one=0;
 	my_ace_guard  guard(_mutex);
 
-	for (crit=_interractions.rbegin();crit!=_interractions.rend();++crit)
+	for (crit=_inters.rbegin();crit!=_inters.rend();++crit)
 	{
 		one=(*crit);
-		if (one->server->srcPort==sPort&&strcmp(one->server->src,saddr)==0
-			&&strcmp(one->server->des,daddr)==0)
+		if (one->get_server_info()->srcPort==sPort&&strcmp(one->get_server_info()->src,saddr)==0
+			&&strcmp(one->get_server_info()->des,daddr)==0)
 		{
-			if (one->status==INTERACTION_NORMAL)
+			if (one->get_interaction_status()==INTERACTION_NORMAL)
 			{
 				return one;
 			}	
@@ -88,16 +107,16 @@ struct oneInteraction* Interaction_List::get_matched_interaction(char saddr[],ch
 	}
 	return 0;
 }
-TimeOut_Handler* Interaction_List::get_matched_timeout_handler(struct oneInteraction* interaction)
+int Interaction_List::disabled()
 {
 	my_ace_guard  guard(_mutex);
-	TimeOut_Handler* th=0;
-	map<struct oneInteraction*,TimeOut_Handler*>::const_iterator coit=_ITmap.find(interaction);
-	if (coit==_ITmap.end())
-	{
-		return 0;
-	}
-	th=coit->second;
-	_ITmap.erase(coit);
-	return th;
+	_status=DISABLED;
+	_notlessthan50.broadcast();
+	return 0;
+}
+int Interaction_List::enabled()
+{
+	my_ace_guard  guard(_mutex);
+	_status=ENABLED;
+	return 0;
 }

@@ -17,6 +17,8 @@ public:
 
   	unsigned int get_element_size();
 	virtual int destroy();
+	virtual int disabled();
+	virtual int enabled();
 protected:
 	int is_empty();
 	int is_full();
@@ -70,6 +72,16 @@ int my_fifo<T>::is_full()
 }
 template<typename T>
 int my_fifo<T>::destroy()
+{
+	return -1;
+}
+template<typename T>
+int my_fifo<T>::disabled()
+{
+	return -1;
+}
+template<typename T>
+int my_fifo<T>::enabled()
 {
 	return -1;
 }

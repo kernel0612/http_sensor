@@ -13,6 +13,8 @@ public:
 	virtual int init();
 	virtual int push_back(T content);
 	virtual int pop_front(T& content);
+	int disabled();
+	int enabled();
 
 private:
 	T* base;
@@ -88,7 +90,6 @@ int my_ringbuffbased_fifo<T>::pop_front(T& content)
 		my_ace_guard guard(this->mutex);
 		while (this->is_empty()==0)
 		{
-			//printf("wait for not empty\n");
 			ret=this->condNotempty.wait(&time_out_v);
 			if (ret==-1)
 			{
@@ -105,5 +106,14 @@ int my_ringbuffbased_fifo<T>::pop_front(T& content)
 	}
 	return 0;
 }
-
+template<typename T>
+int my_ringbuffbased_fifo<T>::disabled()
+{
+	return -1;
+}
+template<typename T>
+int my_ringbuffbased_fifo<T>::enabled()
+{
+	return -1;
+}
 #endif

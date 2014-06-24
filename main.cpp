@@ -14,7 +14,6 @@ void get_size(void* arg)
 	while(1)
 	{
 		printf("size:%d\n",fifo->get_element_size());
-		//Sleep(5);
 	}
 }
 int i=0;
@@ -38,7 +37,6 @@ void prod(void* arg)
 			}
 		}
 		i++;	
-		//Sleep(10);
 		ACE_OS::sleep(sleepTime);
 	}
 }
@@ -89,11 +87,8 @@ int main(int argc,char** argv)
 
 	cap_http* ins=cap_http::get_instance();
 	ins->init();
-	ins->run_ace_event_loop();
-	while(1)
-	{
-		ACE_OS::sleep(5);
-	}
+	ins->register_tcp(0);
+	ins->run();
 	cap_http::destroy_instance();
 	system("pause");
 	return 0;

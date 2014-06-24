@@ -23,26 +23,31 @@ public:
 	friend void http_protocol_callback(struct tcp_stream *tcp_http_connection, void **param);
 
 	static cap_http* get_instance();
-	void parse_server_data(char content[], int number,char saddr[],char daddr[],unsigned short sport,unsigned short dport);
-	void parse_client_data(char content[], int number,char saddr[],char daddr[],unsigned short sport,unsigned short dport);
-	my_fifo<struct cap_content_block>* get_capContents_fifo();
-	proc_capCnt_block* get_proc_capCnt_block();
 	static void destroy_instance();
-	Interaction_List& get_interaction_list();
-    int create_thread(unsigned int n);
-	int run_ace_event_loop();
-	int run_output_loop();
+
+
 private:
 	~cap_http(void);
-	
+	my_fifo<struct cap_content_block>* get_capContents_fifo();
+	proc_capCnt_block* get_proc_capCnt_block();
+	Interaction_List& get_interaction_list();
+	void parse_server_data(char content[], int number,char saddr[],char daddr[],unsigned short sport,unsigned short dport);
+	void parse_client_data(char content[], int number,char saddr[],char daddr[],unsigned short sport,unsigned short dport);
+	int run_parse_content_loop();
+	int run_ace_event_loop();
+	int run_output_loop();
+	int run_nids_cap_loop();
+	int run_monitor_thread();
 	static void parse_content(void* args);
 	static void handle_ace_event(void* args);
 	static void output_interaction_data(void* args);
-	int create_one_interaction(struct oneInteraction** one);
-	int init_request_interaction(struct oneInteraction* pinter,char request[],char src[],char des[],unsigned short 
+	static void nids_cap_loop(void* args);
+	static void monitor_thread(void* args);
+	int create_one_interaction(interaction** one);
+	int init_request_interaction(interaction* pinter,char request[],char src[],char des[],unsigned short 
 		sport,unsigned short dport);
-	int extract_chunked_data(char entity[],int number,int inLackNumber,int isContinued,char** output,int& outlen,int &complete,int &outLackNum);
-	unsigned int my_min(unsigned int len1,unsigned len2);
+	int extract_chunked_data(char entity[],int number,char* output,int inlen,int& outlen,int &complete);
+	unsigned int my_min(unsigned int len1,unsigned int len2);
 
 	int my_uuid_generate(char out[],int len);
 	//int httpgzdecompress(Byte *zdata, uLong nzdata, Byte *data, uLong *ndata);
