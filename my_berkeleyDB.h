@@ -13,13 +13,14 @@ public:
 	my_berkeleyDB(void);
 	~my_berkeleyDB(void);
 	int open(const char* dbname);
+	int open(const char* dbname,DBTYPE type);
 	int close();
 	int put(char* key,int keySize,void* value,int valueSize);
 	int put(void* value,int valueSize);
 	int get(char* key,int keySize,void** value,int* valueSize);
 	int get(void** value,int* valueSize);
-	int del(char* key,int keySize);
-	int update(char* key,int keySize,void* value,int valueSize);
+	//int del(char* key,int keySize);
+	//int update(char* key,int keySize,void* value,int valueSize);
 
 
 

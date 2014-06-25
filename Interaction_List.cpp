@@ -32,6 +32,27 @@ int Interaction_List::clear()
 	}
 	return -1;
 }
+int Interaction_List::delete_one_interaction(interaction* in)
+{
+	if (!in)
+	{
+		return -1;
+	}
+	if (in->get_client_info())
+	{
+		if (in->get_client_info()->content)
+		{
+			delete []in->get_client_info()->content;
+		}
+		delete in->get_client_info();
+	}
+	if (in->get_server_info())
+	{
+		delete in->get_server_info();
+	}
+	delete in;
+	return 0;
+}
 unsigned int Interaction_List::get_list_size()
 {
 	my_ace_guard  guard(_mutex);

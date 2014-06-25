@@ -1,11 +1,14 @@
 #ifndef CAP_HTTP_H
 #define CAP_HTTP_H
+#include <vector>
 #include "Interaction_List.h"
 #include "my_ace_guard.h"
 #include "my_berkeleyDBbased_fifo.h"
 #include "my_ringbuffbased_fifo.h"
 #include "ace/Thread_Manager.h"
 #include "proc_capCnt_block.h"
+#include "output_to_file.h"
+#include "output_to_db.h"
 //#include "nids.h"
 //#include "uuid/uuid.h"
 //#include "zlib.h"
@@ -52,6 +55,10 @@ private:
 	int my_uuid_generate(char out[],int len);
 	//int httpgzdecompress(Byte *zdata, uLong nzdata, Byte *data, uLong *ndata);
 	int replace_str(char *sSrc, char *sMatchStr, char *sReplaceStr);
+	int print_one_interaction(interaction* in);
+
+	int init_proc_interactions();
+	int process_output_method(struct outputSerInfo* srv , struct outputCliInfo* clt);
 private:
 	ACE_Select_Reactor _select_reactor;
 	ACE_Reactor _reactor;
@@ -62,9 +69,11 @@ private:
 	ACE_Thread_Mutex _clientinfo_mutex;
 	int _quit;
 	proc_capCnt_block* _pccb;
-	TimeOut_Handler* th;
-	TimeOut_Handler* th1;
-	TimeOut_Handler* th2;
+	//TimeOut_Handler* th;
+	//TimeOut_Handler* th1;
+	//TimeOut_Handler* th2;
+
+	vector<proc_output_interaction*> _proc_outputs;
 	
 };
 

@@ -9,6 +9,15 @@ cap_http::cap_http(void):_capContents_fifo(new my_berkeleyDBbased_fifo<struct ca
 }
 cap_http::~cap_http(void)
 {
+	vector<proc_output_interaction*>::const_iterator coit=_proc_outputs.begin();
+	proc_output_interaction* poi=0;
+	while(coit!=_proc_outputs.end())
+	{
+        poi=*coit;
+		(*coit)->fini();
+		coit=_proc_outputs.erase(coit);
+		delete poi;
+	}	
 }
 
 int cap_http::init()
@@ -16,10 +25,14 @@ int cap_http::init()
 	int ret=0;
 	//ret=nids_init();
 	ret=get_capContents_fifo()->init();
-	cout <<"init()"<<endl;
-	th=new TimeOut_Handler(0,5,&_reactor);
-	th1=new TimeOut_Handler(0,6,&_reactor);
-	th2=new TimeOut_Handler(0,7,&_reactor);
+	if (ret!=0)
+	{
+		return ret;
+	}
+	//th=new TimeOut_Handler(0,5,&_reactor);
+	//th1=new TimeOut_Handler(0,6,&_reactor);
+	//th2=new TimeOut_Handler(0,7,&_reactor);
+	//ret=init_proc_interactions();
 	return ret;
 }
 int cap_http::run()
@@ -351,7 +364,7 @@ void cap_http::parse_client_data(char content[], int number,char saddr[],char da
 						if (strstr(temp,"HTTP"))
 						{
 							strncpy(resCode,temp,my_min(strlen(temp),RESPONSECODE_BUF_SIZE));
-							//my_uuid_generate(client->responseID,64);
+							my_uuid_generate(client->responseID,64);
 						}
 						if (strstr(temp, "Date"))
 						{
@@ -370,9 +383,9 @@ void cap_http::parse_client_data(char content[], int number,char saddr[],char da
 							{
 								try
 								{
-									 if (contentSize>65535)
+									 if (contentSize>MAX_BUFF_SIZE)
 									 {
-										 contentSize=65535;
+										 contentSize=MAX_BUFF_SIZE;
 									 }
 									 pmalloc=new char[contentSize+1];
 									 memset(pmalloc,0,contentSize+1);
@@ -448,6 +461,7 @@ void cap_http::parse_client_data(char content[], int number,char saddr[],char da
 					client->contentSize=contentSize;
 				}
 				memcpy(client->responseID,responseID,RESPONSEID_BUF_SIZE);
+				memcpy(client->requestID,intern->get_server_info()->requestID,REQUESTID_BUF_SIZE);
 				memcpy(client->contentType,contentType,CONTENTTYPE_BUF_SIZE);
 				memcpy(client->resCode,resCode,RESPONSECODE_BUF_SIZE);
 				memcpy(client->date,date,DATE_BUF_SIZE);
@@ -600,7 +614,60 @@ int cap_http::create_one_interaction(interaction** one)
 	}
 	return 0;
 }
-
+int cap_http::print_one_interaction(interaction* in)
+{
+	struct serverInfo* srv=0;
+	struct clientInfo* clt=0;
+	if (in)
+	{
+		srv=in->get_server_info();
+		clt=in->get_client_info();
+		if (srv)
+		{
+			printf("************************************************\n");
+			printf("requestID:%s\n",srv->requestID);
+			printf("url:%s\n",srv->url);
+			printf("method:%s\n",srv->method);
+			printf("host:%s\n",srv->host);
+			printf("src:%s\n",srv->src);
+			printf("srcPort:%i\n",srv->srcPort);
+			printf("des:%s\n",srv->des);
+			printf("desPort:%i\n",srv->desPort);
+			printf("httptype:%s\n",srv->httpType);
+			printf("referer:%s\n",srv->refer);
+			printf("accept:%s\n",srv->accept);
+			printf("acceptEncode:%s\n",srv->accEncod);
+			printf("userAgent:%s\n",srv->userAgent);
+			printf("content:%s\n",srv->content);
+		}
+		if (clt)
+		{
+			printf("+++++++++++++++++++++++++++++++++++++++++++++++++\n");
+			printf("responseID:%s\n",clt->responseID);
+			printf("requestID:%s\n",clt->requestID);
+			printf("contentType:%s\n",clt->contentType);
+			printf("date:%s\n",clt->date);
+			printf("responseCode:%s\n",clt->resCode);
+			printf("contentSize:%d\n",clt->contentSize);
+			printf("content:%s\n",clt->content);	
+			if (clt->isChunked)
+			{
+				printf("transfer-encode is  chunke\n");
+			}
+			if (clt->isFilter)
+			{
+				printf("filter photograph\n");
+			}
+			if (clt->complete)
+			{
+				printf("recv complete\n");
+			}
+		}
+	
+		return 0;
+	}
+	return -1;
+}
 int cap_http::init_request_interaction(interaction* pinter,char request[],char src[],char des[],unsigned short 
 	sport,unsigned short dport)
 {
@@ -630,7 +697,7 @@ int cap_http::init_request_interaction(interaction* pinter,char request[],char s
 	strncat(serinfo->url,serinfo->des,desAddr_len);
 	strncat(serinfo->url,resource,my_min(strlen(resource),URL_BUF_SIZE-http_head_len-desAddr_len)-1);
 	strncpy(serinfo->httpType,httptype,my_min(strlen(httptype),HTTPTYPE_BUFF_SIZE)-1);
-	//my_uuid_generate(serinfo->requestID,64);
+	my_uuid_generate(serinfo->requestID,64);
 	return 0;
 }
 unsigned int cap_http::my_min(unsigned int len1,unsigned int len2)
@@ -646,7 +713,7 @@ int cap_http::extract_chunked_data(char entity[],int number,char* output,int inl
 	int client_content_len=0;
 	int tmp_content_len=0;
 	int minSize=0;	
-	if (!output||!entity||!number||number>MAX_BUFF_SIZE)
+	if (!output||!entity||number<=0||number>MAX_BUFF_SIZE||inlen<MAX_BUFF_SIZE)
 	{
 		return -1;
 	}
@@ -668,7 +735,7 @@ int cap_http::extract_chunked_data(char entity[],int number,char* output,int inl
 					k=i+2;       //跳过\r\n找到正文部分
 					i+=(contentLen+2+1);  //+contenLen跳过正文转到下一段 +2 跳过\r\n +1跳过 \r forloop接着i++跳过\n
 					memcpy(content,entity+k,minSize=my_min(number,contentLen));					  			  
-					memcpy(output+client_content_len,content,minSize=my_min(minSize,inlen-client_content_len));
+					memcpy(output+client_content_len,content,minSize=my_min(minSize,inlen-client_content_len-1));
 					client_content_len+=minSize;
 					outlen=client_content_len;		
 				}
@@ -802,23 +869,58 @@ void cap_http::output_interaction_data(void* args)
 	struct clientInfo* pclt=0;
 	ACE_DEBUG((LM_INFO,"output_interaction_data thread begin\n"));
 	int ret=0;
-	char tmpbuff[MAX_BUFF_SIZE*4]={0};
+	char tmpbuff[MAX_BUFF_SIZE]={0};
+	int complete=0;
+	int outlen=0;
+	int uncomlen=MAX_BUFF_SIZE*4;
+	char uncombuff[MAX_BUFF_SIZE*4]={0};
+	struct outputSerInfo outsrv;
+	struct outputCliInfo outclt;
+	int outsrvlen=sizeof(struct outputSerInfo);
+	int outcltlen=sizeof(struct outputCliInfo);
 	while(!ins->_quit)
 	{
 		ret=ins->get_interaction_list().pop(&pinter);
+		complete=0;
+		outlen=0;
+		memset(tmpbuff,0,MAX_BUFF_SIZE);
+		memset(uncombuff,0,MAX_BUFF_SIZE*4);
 		if (ret==0)
 		{
 			psrv=pinter->get_server_info();
 			pclt=pinter->get_client_info();
-			if (psrv)
-			{
+			ins->print_one_interaction(pinter);
+			if (pclt)
+			{		
+				if (pclt->isChunked)
+				{
+					if (ins->extract_chunked_data(pclt->content,pclt->contentSize,tmpbuff,MAX_BUFF_SIZE,outlen,complete)==0)
+					{
+						memcpy(pclt->content,tmpbuff,pclt->contentSize=ins->my_min(outlen,pclt->contentSize));
+					}
+				}
+				// uncompress
+				//if (ins->httpgzdecompress((Byte*)pclt->content,pclt->contentSize,(Byte*)uncombuff,&uncomlen)==0)
+				//{
+					//after uncompress  begin process output method
+					if (psrv)
+					{
+
+						//begin regex rules
+
+						
+						//end regex rules
+						memset(&outsrv,0,outsrvlen);
+						memset(&outclt,0,outcltlen);
+						// 将识别 摘取的内容拷贝到 outsrv和outclt中
+					    ins->process_output_method(&outsrv,&outclt);
+					}
+
+				//}
 				
 			}
-			if (pclt)
-			{
-				pclt->isChunked;
-			}
-
+			//delete 
+			ins->get_interaction_list().delete_one_interaction(pinter);
 		}
 		else if (ret==-1)
 		{
@@ -858,4 +960,59 @@ void cap_http::monitor_thread(void* args)
 	}
 	ACE_DEBUG((LM_INFO,"monitor_thread quit\n"));
 
+}
+int cap_http::init_proc_interactions()
+{
+	proc_output_interaction* poi=0;
+	try
+	{
+		poi=new output_to_db;
+		if (poi)
+		{
+			if (poi->init()==0)
+			{
+				_proc_outputs.push_back(poi);
+			}	
+			else
+				return -1;
+		}
+		poi=new output_to_file;
+		if (poi)
+		{
+			if (poi->init()==0)
+			{
+				_proc_outputs.push_back(poi);
+			}
+			else
+				return -1;
+		}
+	}
+	catch (...)
+	{
+		if (poi)
+		{
+			delete poi;
+		}
+		cout <<"init proc_interactions failed"<<endl;
+		return -1;
+	}
+	return 0;
+
+}
+int cap_http::process_output_method(struct outputSerInfo* srv , struct outputCliInfo* clt)
+{
+	if (!srv||!clt)
+	{
+		return -1;
+	}
+	vector<proc_output_interaction*>::const_iterator coit=_proc_outputs.begin();
+	while(coit!=_proc_outputs.end())
+	{
+		if ((*coit)->process(srv,clt)!=0)
+		{
+			return -1;
+		}
+		++coit;
+	}
+	return 0;
 }

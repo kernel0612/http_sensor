@@ -44,7 +44,6 @@ struct serverInfo
 };
 struct clientInfo
 { 
-	//char ReContent[MAX_BUFF_SIZE];
 	char contentType[CONTENTTYPE_BUF_SIZE];
 	char resCode[RESPONSECODE_BUF_SIZE];
 	char requestID[REQUESTID_BUF_SIZE];  //uuid

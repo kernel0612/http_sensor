@@ -84,11 +84,31 @@ int main(int argc,char** argv)
 
 	//delete fifo;
 
+	//proc_output_interaction* p=new output_to_file;
+	//if (p->init()!=0)
+	//{
+	//	cout<<"init error"<<endl;
+	//	return -1;
+	//}
+	//struct outputSerInfo osi;
+	//struct outputCliInfo oci;
+	//memset(&osi,0,sizeof(struct outputSerInfo));
+	//memset(&oci,0,sizeof(struct outputCliInfo));
+	//osi.desPort=1;
+	//osi.srcPort=2;
+	//memcpy(osi.requestID,"sdfsfsf",16);
+	//memcpy(oci.responseID,"sdffsffe",16);
+	//if (p->process(&osi,&oci)!=0)
+	//{
+	//	cout <<"process error"<<endl;
+	//}
+	//p->fini();
+
 
 	cap_http* ins=cap_http::get_instance();
 	ins->init();
-	ins->register_tcp(0);
-	ins->run();
+	//ins->register_tcp(0);
+	//ins->run();
 	cap_http::destroy_instance();
 	system("pause");
 	return 0;

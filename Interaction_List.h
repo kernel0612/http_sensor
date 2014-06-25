@@ -23,6 +23,7 @@ public:
 	 interaction* get_matched_interaction_m(char saddr[],char daddr[],unsigned short sPort);
 	 int disabled();
 	 int enabled();
+	 int delete_one_interaction(interaction* in);
 
 private:
 	unsigned int _count;
