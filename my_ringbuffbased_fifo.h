@@ -57,7 +57,8 @@ int my_ringbuffbased_fifo<T>::push_back(T content)
 	ACE_Time_Value time_out_v=ACE_Time_Value(5)+ACE_OS::gettimeofday();
 	int ret=0;
 	{
-		my_ace_guard guard(this->mutex);
+		//my_ace_guard guard(this->mutex);
+		ACE_Guard<ACE_Recursive_Thread_Mutex> guard(this->mutex);
 		while (this->is_full()==0)
 		{
 			ret=this->condNotfull.wait(&time_out_v);
@@ -87,7 +88,8 @@ int my_ringbuffbased_fifo<T>::pop_front(T& content)
 	ACE_Time_Value time_out_v=ACE_Time_Value(5)+ACE_OS::gettimeofday();
 	int ret=0;
 	{
-		my_ace_guard guard(this->mutex);
+		//my_ace_guard guard(this->mutex);
+		ACE_Guard<ACE_Recursive_Thread_Mutex> guard(this->mutex);
 		while (this->is_empty()==0)
 		{
 			ret=this->condNotempty.wait(&time_out_v);

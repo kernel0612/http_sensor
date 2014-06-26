@@ -9,7 +9,7 @@ cap_http::cap_http(void):_capContents_fifo(new my_berkeleyDBbased_fifo<struct ca
 }
 cap_http::~cap_http(void)
 {
-	vector<proc_output_interaction*>::const_iterator coit=_proc_outputs.begin();
+	vector<proc_output_interaction*>::iterator coit=_proc_outputs.begin();
 	proc_output_interaction* poi=0;
 	while(coit!=_proc_outputs.end())
 	{
@@ -23,15 +23,24 @@ cap_http::~cap_http(void)
 int cap_http::init()
 {
 	int ret=0;
-	//ret=nids_init();
+	ret=nids_init();
+	if (!ret)
+	{
+		cout <<"error:"<<nids_errbuf<<endl;
+		return -1;
+	}
 	ret=get_capContents_fifo()->init();
 	if (ret!=0)
 	{
 		return ret;
 	}
 	//th=new TimeOut_Handler(0,5,&_reactor);
+	//th->set_timer();
+	//th->cancel_timer();
 	//th1=new TimeOut_Handler(0,6,&_reactor);
+	//th1->set_timer();
 	//th2=new TimeOut_Handler(0,7,&_reactor);
+	//th2->set_timer();
 	//ret=init_proc_interactions();
 	return ret;
 }
@@ -49,15 +58,11 @@ int cap_http::run()
 
 void cap_http::exit()
 {
-	//nids_exit();
+	nids_exit();
 	_quit=1;
 	_reactor.end_reactor_event_loop();
 	_interactons.disabled();
 	get_capContents_fifo()->disabled();
-}
-void cap_http::register_tcp(void(*p))
-{
-	//nids_register_tcp(p);
 }
 
 void http_protocol_callback(struct tcp_stream *tcp_http_connection, void **param)
@@ -69,87 +74,107 @@ void http_protocol_callback(struct tcp_stream *tcp_http_connection, void **param
 	char daddr[32];
 	unsigned short sport;
 	unsigned short dport;
-	//struct tuple4 ip_and_port = tcp_http_connection->addr;
-	//strcpy(saddr,inet_ntoa(*((struct in_addr*) &(ip_and_port.saddr))));
-	//strcpy(daddr,inet_ntoa(*((struct in_addr*) &(ip_and_port.daddr))));
-	//sport=ip_and_port.source;
-	//dport=ip_and_port.dest;
-	//
-	//unsigned int blockNum=0;
-	//unsigned int writebegin=0;
-	//unsigned int currBlockSize=0;
+	struct tuple4 ip_and_port = tcp_http_connection->addr;
+	strcpy(saddr,inet_ntoa(*((struct in_addr*) &(ip_and_port.saddr))));
+	strcpy(daddr,inet_ntoa(*((struct in_addr*) &(ip_and_port.daddr))));
+	sport=ip_and_port.source;
+	dport=ip_and_port.dest;
 
-	//if (tcp_http_connection->nids_state == NIDS_JUST_EST)
-	//{
-	//	if (tcp_http_connection->addr.dest != 80)
-	//	{
-	//		return ;
-	//	}
-	//	tcp_http_connection->client.collect++; 
-	//	tcp_http_connection->server.collect++; 
-	//	return ;
-	//}
-	//if (tcp_http_connection->nids_state == NIDS_CLOSE)
-	//{
+	unsigned int blockNum=0;
+	unsigned int writebegin=0;
+	unsigned int currBlockSize=0;
+
+	if (tcp_http_connection->nids_state == NIDS_JUST_EST)
+	{
+		if (tcp_http_connection->addr.dest != 80)
+		{
+			return ;
+		}
+		tcp_http_connection->client.collect++; 
+		tcp_http_connection->server.collect++; 
+		return ;
+	}
+	if (tcp_http_connection->nids_state == NIDS_CLOSE)
+	{
 	intern=ins->get_interaction_list().get_matched_interaction_m(saddr,daddr,sport);
 	if (intern)
 	{
 		intern->set_interactin_status(INTERACTION_CLOSE);
 	}	
-	//	return ;
-	//}
-	//if (tcp_http_connection->nids_state == NIDS_RESET)
-	//{
-	intern=ins->get_interaction_list().get_matched_interaction_m(saddr,daddr,sport);
-	if (intern)
+	return ;
+}
+	if (tcp_http_connection->nids_state == NIDS_RESET)
 	{
-		intern->set_interactin_status(INTERACTION_RESET);
-	}	
-	//	return ;
-	//}
-	//if (tcp_http_connection->nids_state == NIDS_DATA)
-	//{
-	//	struct half_stream *hlf;
-	//	if (tcp_http_connection->client.count_new)
-	//	{
-	//		struct cap_content_block block;
-	//		memset(&block,0,sizeof(struct cap_content_block));
-	//		hlf = &tcp_http_connection->client;	
-	//		memcpy(block.Src,saddr,32);
-	//		memcpy(block.Des,daddr,32);
-	//		block.Sport=sport;
-	//		block.Dport=dport;
-	//		block.type=CLIENT_CNT;
-	//		blockNum=(hlf->count_new/CAP_CONTENT_BLOCK_SIZE)+(hlf->count_new%CAP_CONTENT_BLOCK_SIZE==0?0:1);
-	//		for (int i=1;i<=blockNum;i++)
-	//		{
-	//			currBlockSize=i<blockNum?(CAP_CONTENT_BLOCK_SIZE):(hlf->count_new-(blockNum-1)*CAP_CONTENT_BLOCK_SIZE);
-	//			memcpy(block.CntBlock,hlf->data+writebegin,currBlockSize);
-	//			writebegin+=CAP_CONTENT_BLOCK_SIZE;
-	//			ins->get_capContents_fifo()->push_back(block);
-	//		}
+		intern=ins->get_interaction_list().get_matched_interaction_m(saddr,daddr,sport);
+		if (intern)
+		{
+			intern->set_interactin_status(INTERACTION_RESET);
+		}	
+		return ;
+	}
+	if (tcp_http_connection->nids_state == NIDS_DATA)
+	{
+		struct half_stream *hlf;
+		if (tcp_http_connection->client.count_new)
+		{
+			cout <<"client  recv data...."<<endl;
+			struct cap_content_block block;
+			memset(&block,0,sizeof(struct cap_content_block));
+			hlf = &tcp_http_connection->client;	
+			memcpy(block.Src,saddr,32);
+			memcpy(block.Des,daddr,32);
+			block.Sport=sport;
+			block.Dport=dport;
+			block.type=CLIENT_CNT;
+			blockNum=(hlf->count_new/CAP_CONTENT_BLOCK_SIZE)+(hlf->count_new%CAP_CONTENT_BLOCK_SIZE==0?0:1);
+			block.TotalBlockNum=blockNum;
+			for (int i=1;i<=blockNum;i++)
+			{
+				currBlockSize=i<blockNum?(CAP_CONTENT_BLOCK_SIZE):(hlf->count_new-(blockNum-1)*CAP_CONTENT_BLOCK_SIZE);
+				memcpy(block.CntBlock,hlf->data+writebegin,currBlockSize);
+				block.CurrBlockNum=i;
+				block.CntBlockSize+=currBlockSize;
+				writebegin+=CAP_CONTENT_BLOCK_SIZE;
+				if (ins->get_capContents_fifo()->push_back(block)!=0)
+				{
+					cout <<"client fifo push back error"<<endl;
+				}
+				
+			}
 
-	//	}
-	//	if (tcp_http_connection->server.count_new)
-	//	{
-	//		struct cap_content_block block;
-	//		memset(&block,0,sizeof(struct cap_content_block));
-	//		hlf = &tcp_http_connection->server;       
-	//		memcpy(block.Src,saddr,32);
-	//		memcpy(block.Des,daddr,32);
-	//		block.Sport=sport;
-	//		block.Dport=dport;
-	//		block.type=SERVER_CNT;
-	//		blockNum=(hlf->count_new/CAP_CONTENT_BLOCK_SIZE)+(hlf->count_new%CAP_CONTENT_BLOCK_SIZE==0?0:1);
-	//		for (int i=1;i<=blockNum;i++)
-	//		{
-	//			currBlockSize=i<blockNum?(CAP_CONTENT_BLOCK_SIZE):(hlf->count_new-(blockNum-1)*CAP_CONTENT_BLOCK_SIZE);
-	//			memcpy(block.CntBlock,hlf->data+writebegin,currBlockSize);
-	//			writebegin+=CAP_CONTENT_BLOCK_SIZE;
-	//			ins->get_capContents_fifo()->push_back(block);
-	//		}
-	//	}
-	//}
+		}
+		if (tcp_http_connection->server.count_new)
+		{
+			cout <<"server  recv data...."<<endl;
+			struct cap_content_block block;
+			memset(&block,0,sizeof(struct cap_content_block));
+			hlf = &tcp_http_connection->server;       
+			memcpy(block.Src,saddr,32);
+			memcpy(block.Des,daddr,32);
+			block.Sport=sport;
+			block.Dport=dport;
+			block.type=SERVER_CNT;
+			blockNum=(hlf->count_new/CAP_CONTENT_BLOCK_SIZE)+(hlf->count_new%CAP_CONTENT_BLOCK_SIZE==0?0:1);
+			block.TotalBlockNum=blockNum;
+			for (int i=1;i<=blockNum;i++)
+			{
+				currBlockSize=i<blockNum?(CAP_CONTENT_BLOCK_SIZE):(hlf->count_new-(blockNum-1)*CAP_CONTENT_BLOCK_SIZE);
+				memcpy(block.CntBlock,hlf->data+writebegin,currBlockSize);
+				block.CurrBlockNum=i;
+				block.CntBlockSize+=currBlockSize;
+				writebegin+=CAP_CONTENT_BLOCK_SIZE;
+				if (ins->get_capContents_fifo()->push_back(block)!=0)
+				{
+					cout <<"server fifo push back error"<<endl;
+				}
+				
+			}
+		}
+	}
+}
+void cap_http::register_tcp()
+{
+	nids_register_tcp((void*)(::http_protocol_callback));
 }
 my_fifo<struct cap_content_block>* cap_http::get_capContents_fifo()
 {
@@ -199,11 +224,15 @@ void cap_http::parse_server_data(char content[], int number,char saddr[],char da
 				k=0;
 				if (strstr(temp, "GET")||strstr(temp,"POST"))  //方法暂时只取两种GET POST
 				{
+					//cout <<"here we got GET or POST "<<endl;
 					ret=create_one_interaction(&pinter);
 					if (ret==0)
 					{
 						init_request_interaction(pinter,temp,saddr,daddr,sport,dport);
+						serinfo=pinter->get_server_info();
 					}
+					else
+						cout <<"create one interaction failed"<<endl;
 				}
 				if (strstr(temp, "Accept:"))
 				{
@@ -289,7 +318,10 @@ void cap_http::parse_server_data(char content[], int number,char saddr[],char da
 	if (pinter)
 	{
         _interactons.put(pinter);
+		//cout <<"here we push one interaction into interaction_list"<<endl;
 	}
+	else
+		cout <<"here we can't push one interaction into interaction_list"<<endl;
 }
 void cap_http::parse_client_data(char content[], int number,char saddr[],char daddr[],
 	unsigned short sport,unsigned short dport)
@@ -318,13 +350,18 @@ void cap_http::parse_client_data(char content[], int number,char saddr[],char da
 	intern=_interactons.get_matched_interaction_m(saddr,daddr,sport);
 	if (!intern)
 	{
+		cout <<"can't find matched interaction"<<endl;
 		return;
 	}
-	th=intern->get_timeout_handler();
-	if (th)
-	{
-		th->cancel_timer();
-	}
+	//if (intern->get_interaction_status()!=INTERACTION_TIMEOUT)
+	//{
+	//	th=intern->get_timeout_handler();
+	//	if (th)
+	//	{
+	//		th->cancel_timer();
+	//	}
+	//}
+
 	client=intern->get_client_info();
     //set filter
 
@@ -334,7 +371,6 @@ void cap_http::parse_client_data(char content[], int number,char saddr[],char da
 		return;
 	}
 	//-----------------------------------------------------------
-
 	if (number<4)
 	{
 		writeLen=my_min(number,MAX_BUFF_SIZE-1);
@@ -531,6 +567,7 @@ void cap_http::parse_content(void* args)
 		ret=ins->get_capContents_fifo()->pop_front(block);
 		if (ret==0)
 		{
+			//cout <<block.CntBlock<<endl;
 			if (ins->get_proc_capCnt_block()->append_block_to_proccess(block,cap)==0)
 			{
 				if (cap.cliHasCnt)
@@ -542,14 +579,22 @@ void cap_http::parse_content(void* args)
 					ins->parse_server_data(cap.srvCnt,cap.srvCntSize,cap.srvSrc,cap.srvDes,cap.srvSport,cap.srvDport);
 				}
 			}
+			else
+			{
+				//cout <<"append msg block error"<<endl;
+				continue;
+			}
 
 		}
 		if (ret==-1)
 		{
+			cout <<"fifo pop error quit"<<endl;
+			break;
 		}
 		if (ret==1)
 		{
 			//printf("wait not empty time out\n");
+			cout <<"fifo disabled quit"<<endl;
 			break;
 		}
 		//ACE_OS::sleep(sleep_tv);
@@ -591,7 +636,9 @@ int cap_http::create_one_interaction(interaction** one)
 		memset((*one)->get_client_info(),0,sizeof(struct clientInfo));
 		memset((*one)->get_server_info(),0,sizeof(struct serverInfo));
 		(*one)->set_interactin_status(INTERACTION_NORMAL);
-		(*one)->set_timeout_handler(new TimeOut_Handler(*one,10,&_reactor));
+		TimeOut_Handler* th=new TimeOut_Handler(*one,10,&_reactor);
+		th->set_timer();
+		(*one)->set_timeout_handler(th);
 	}
 	catch (...)
 	{
@@ -690,13 +737,13 @@ int cap_http::init_request_interaction(interaction* pinter,char request[],char s
 	serinfo->srcPort=sport;
 	serinfo->desPort=dport;
 	sscanf(request, "%s %s %s", method, resource, httptype);//分割为 GET  resource http/1.1 形式
-	strncpy(serinfo->method,method,my_min(strlen(method),METHOD_BUF_SIZE)-1);
+	strncpy(serinfo->method,method,my_min(strlen(method),METHOD_BUF_SIZE-1));
 	http_head_len=strlen("http://");
 	strncpy(serinfo->url,"http://",http_head_len);
 	desAddr_len=strlen(serinfo->des);
 	strncat(serinfo->url,serinfo->des,desAddr_len);
-	strncat(serinfo->url,resource,my_min(strlen(resource),URL_BUF_SIZE-http_head_len-desAddr_len)-1);
-	strncpy(serinfo->httpType,httptype,my_min(strlen(httptype),HTTPTYPE_BUFF_SIZE)-1);
+	strncat(serinfo->url,resource,my_min(strlen(resource),URL_BUF_SIZE-http_head_len-desAddr_len-1));
+	strncpy(serinfo->httpType,httptype,my_min(strlen(httptype),HTTPTYPE_BUFF_SIZE-1));
 	my_uuid_generate(serinfo->requestID,64);
 	return 0;
 }
@@ -766,59 +813,59 @@ int cap_http::extract_chunked_data(char entity[],int number,char* output,int inl
 
 int cap_http::my_uuid_generate(char out[],int len)
 {
-	//uuid_t uid;
-	//if (!out||len<36)
-	//{
-	//	return -1;
-	//}
-	//uuid_generate(uid);
-	//uuid_unparse(uid,out);
+	uuid_t uid;
+	if (!out||len<36)
+	{
+		return -1;
+	}
+	uuid_generate(uid);
+	uuid_unparse(uid,out);
 	return 0;
 }
 
-//int cap_http::httpgzdecompress(Byte *zdata, uLong nzdata, Byte *data, uLong *ndata)
-//{
-//	int err = 0;
-//	z_stream d_stream = {0}; /* decompression stream */
-//	static char dummy_head[2] =
-//	{
-//		0x8 + 0x7 * 0x10,
-//		(((0x8 + 0x7 * 0x10) * 0x100 + 30) / 31 * 31) & 0xFF,
-//	};
-//	d_stream.zalloc = (alloc_func)0;
-//	d_stream.zfree = (free_func)0;
-//	d_stream.opaque = (voidpf)0;
-//	d_stream.next_in  = zdata;
-//	d_stream.avail_in = 0;
-//	d_stream.next_out = data;
-//	if(inflateInit2(&d_stream,47 ) != Z_OK) return -1;
-//	printf("ds.total_out:%d,ndata:%d,ds.total_in:%d,nzdata:%d\n",d_stream.total_out,*ndata,d_stream.total_in,nzdata);
-//	while (d_stream.total_out < *ndata && d_stream.total_in < nzdata) {
-//		d_stream.avail_in = d_stream.avail_out = 1; /* force small buffers */
-//		if((err = inflate(&d_stream, Z_NO_FLUSH)) == Z_STREAM_END) break;
-//		if(err != Z_OK )
-//		{
-//			if(err == Z_DATA_ERROR)
-//			{
-//				d_stream.next_in = (Bytef*) dummy_head;
-//				d_stream.avail_in = sizeof(dummy_head);
-//				if((err = inflate(&d_stream, Z_NO_FLUSH)) != Z_OK)
-//				{
-//					printf("err: Z_data_error\n");
-//					return -1;
-//				}
-//				printf("err: Z_not_OK\n");
-//			}
-//
-//			else return -1;
-//		}
-//	}
-//	printf("quit whileloop\n");
-//	if(inflateEnd(&d_stream) != Z_OK) return -1;
-//	printf("uncp successful\n");
-//	*ndata = d_stream.total_out;
-//	return 0;
-//}
+int cap_http::httpgzdecompress(Byte *zdata, uLong nzdata, Byte *data, uLong *ndata)
+{
+	int err = 0;
+	z_stream d_stream = {0}; /* decompression stream */
+	static char dummy_head[2] =
+	{
+		0x8 + 0x7 * 0x10,
+		(((0x8 + 0x7 * 0x10) * 0x100 + 30) / 31 * 31) & 0xFF,
+	};
+	d_stream.zalloc = (alloc_func)0;
+	d_stream.zfree = (free_func)0;
+	d_stream.opaque = (voidpf)0;
+	d_stream.next_in  = zdata;
+	d_stream.avail_in = 0;
+	d_stream.next_out = data;
+	if(inflateInit2(&d_stream,47 ) != Z_OK) return -1;
+	printf("ds.total_out:%d,ndata:%d,ds.total_in:%d,nzdata:%d\n",d_stream.total_out,*ndata,d_stream.total_in,nzdata);
+	while (d_stream.total_out < *ndata && d_stream.total_in < nzdata) {
+		d_stream.avail_in = d_stream.avail_out = 1; /* force small buffers */
+		if((err = inflate(&d_stream, Z_NO_FLUSH)) == Z_STREAM_END) break;
+		if(err != Z_OK )
+		{
+			if(err == Z_DATA_ERROR)
+			{
+				d_stream.next_in = (Bytef*) dummy_head;
+				d_stream.avail_in = sizeof(dummy_head);
+				if((err = inflate(&d_stream, Z_NO_FLUSH)) != Z_OK)
+				{
+					printf("err: Z_data_error\n");
+					return -1;
+				}
+				printf("err: Z_not_OK\n");
+			}
+
+			else return -1;
+		}
+	}
+	printf("quit whileloop\n");
+	if(inflateEnd(&d_stream) != Z_OK) return -1;
+	printf("uncp successful\n");
+	*ndata = d_stream.total_out;
+	return 0;
+}
 
 int cap_http::replace_str(char *sSrc, char *sMatchStr, char *sReplaceStr)   //替换匹配部分的字符串   只替换一次  使用host替换 ip
 {
@@ -890,35 +937,35 @@ void cap_http::output_interaction_data(void* args)
 			psrv=pinter->get_server_info();
 			pclt=pinter->get_client_info();
 			ins->print_one_interaction(pinter);
-			if (pclt)
-			{		
-				if (pclt->isChunked)
-				{
-					if (ins->extract_chunked_data(pclt->content,pclt->contentSize,tmpbuff,MAX_BUFF_SIZE,outlen,complete)==0)
-					{
-						memcpy(pclt->content,tmpbuff,pclt->contentSize=ins->my_min(outlen,pclt->contentSize));
-					}
-				}
-				// uncompress
-				//if (ins->httpgzdecompress((Byte*)pclt->content,pclt->contentSize,(Byte*)uncombuff,&uncomlen)==0)
-				//{
-					//after uncompress  begin process output method
-					if (psrv)
-					{
+			//if (pclt)
+			//{		
+			//	if (pclt->isChunked)
+			//	{
+			//		if (ins->extract_chunked_data(pclt->content,pclt->contentSize,tmpbuff,MAX_BUFF_SIZE,outlen,complete)==0)
+			//		{
+			//			memcpy(pclt->content,tmpbuff,pclt->contentSize=ins->my_min(outlen,pclt->contentSize));
+			//		}
+			//	}
+			//	// uncompress
+			//	if (ins->httpgzdecompress((Byte*)pclt->content,pclt->contentSize,(Byte*)uncombuff,&uncomlen)==0)
+			//	{
+			//		//after uncompress  begin process output method
+			//		if (psrv)
+			//		{
 
-						//begin regex rules
+			//			//begin regex rules
 
-						
-						//end regex rules
-						memset(&outsrv,0,outsrvlen);
-						memset(&outclt,0,outcltlen);
-						// 将识别 摘取的内容拷贝到 outsrv和outclt中
-					    ins->process_output_method(&outsrv,&outclt);
-					}
+			//			
+			//			//end regex rules
+			//			memset(&outsrv,0,outsrvlen);
+			//			memset(&outclt,0,outcltlen);
+			//			// 将识别 摘取的内容拷贝到 outsrv和outclt中
+			//		    ins->process_output_method(&outsrv,&outclt);
+			//		}
 
-				//}
-				
-			}
+			//	}
+			//	
+			//}
 			//delete 
 			ins->get_interaction_list().delete_one_interaction(pinter);
 		}
@@ -939,7 +986,7 @@ void cap_http::nids_cap_loop(void* args)
 	cap_http* ins=cap_http::get_instance();
 	ACE_DEBUG((LM_INFO,"nids_cap_loop thread begin\n"));
 	int ret=0;
-	// ret=nids_run();
+	 ret=nids_run();
 	ACE_DEBUG((LM_INFO,"nids_cap_loop thread quit\n"));
 }
 void cap_http::monitor_thread(void* args)

@@ -48,8 +48,8 @@ int my_berkeleyDBbased_fifo<T>::push_back(T content)
 {	
 	//ACE_Time_Value time_out_v=ACE_Time_Value(5)+ACE_OS::gettimeofday();
     int ret=0;
-	my_ace_guard guard(this->mutex);	
-
+//	my_ace_guard guard(this->mutex);	
+	ACE_Guard<ACE_Recursive_Thread_Mutex> guard(this->mutex);
 	while(this->is_full()==0)
 	{
 		ret=this->condNotfull.wait(/*&time_out_v*/);
@@ -85,8 +85,8 @@ int my_berkeleyDBbased_fifo<T>::pop_front(T& content)
 	T* p=0;
 	int size=0;
 	int ret=0;
-	my_ace_guard guard(this->mutex);
-
+//	my_ace_guard guard(this->mutex);
+	ACE_Guard<ACE_Recursive_Thread_Mutex> guard(this->mutex);
 	while(this->is_empty()==0)
 	{
 		ret=this->condNotempty.wait(/*&time_out_v*/);
@@ -120,7 +120,8 @@ int my_berkeleyDBbased_fifo<T>::pop_front(T& content)
 template<typename T>
 int my_berkeleyDBbased_fifo<T>::disabled()
 {
-	my_ace_guard guard(this->mutex);
+	//my_ace_guard guard(this->mutex);
+	ACE_Guard<ACE_Recursive_Thread_Mutex> guard(this->mutex);
 	this->_status=this->DISABLED;
 	this->condNotempty.broadcast();
 	this->condNotfull.broadcast();
@@ -129,7 +130,8 @@ int my_berkeleyDBbased_fifo<T>::disabled()
 template<typename T>
 int my_berkeleyDBbased_fifo<T>::enabled()
 {
-	my_ace_guard guard(this->mutex);
+	//my_ace_guard guard(this->mutex);
+	ACE_Guard<ACE_Recursive_Thread_Mutex> guard(this->mutex);
 	this->_status=this->ENABLED;
 	return 0;
 }

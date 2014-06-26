@@ -13,6 +13,7 @@ proc_capCnt_block::~proc_capCnt_block(void)
 
 int proc_capCnt_block::append_block_to_proccess(struct cap_content_block& block,struct CapContent& outCap)
 {
+	int min=0;
 	my_ace_guard guard(_mutex);
 	_totalBlockNum=block.TotalBlockNum;
 	_currBlockNum=block.CurrBlockNum;
@@ -22,10 +23,11 @@ int proc_capCnt_block::append_block_to_proccess(struct cap_content_block& block,
 	}
 	if (_nextBlockNum==_currBlockNum)
 	{
+
 		_capBlocks.push_back(block);
+
 		if (_currBlockNum==_totalBlockNum)
 		{
-			//
 			vector<struct cap_content_block>::const_iterator coit=_capBlocks.begin();
 			if (coit->type==CLIENT_CNT)
 			{
@@ -36,8 +38,10 @@ int proc_capCnt_block::append_block_to_proccess(struct cap_content_block& block,
 				outCap.cliHasCnt=1;
 				for (;coit!=_capBlocks.end();++coit)
 				{
-					memcpy(outCap.cliCnt+outCap.cliCntSize,coit->CntBlock,coit->CntBlockSize);
-					outCap.cliCntSize+=coit->CntBlockSize;
+					min=((MAX_BUFF_SIZE-1)-outCap.cliCntSize)<coit->CntBlockSize?
+						((MAX_BUFF_SIZE-1)-outCap.cliCntSize):coit->CntBlockSize;
+					memcpy(outCap.cliCnt+outCap.cliCntSize,coit->CntBlock,min);
+					outCap.cliCntSize+=min;
 				}
 			}
 			else if (coit->type==SERVER_CNT)
@@ -49,8 +53,10 @@ int proc_capCnt_block::append_block_to_proccess(struct cap_content_block& block,
 				outCap.srvHasCnt=1;
 				for (;coit!=_capBlocks.end();++coit)
 				{
-					memcpy(outCap.srvCnt+outCap.srvCntSize,coit->CntBlock,coit->CntBlockSize);
-					outCap.srvCntSize+=coit->CntBlockSize;
+					min=((MAX_BUFF_SIZE-1)-outCap.srvCntSize)<coit->CntBlockSize?
+						((MAX_BUFF_SIZE-1)-outCap.srvCntSize):coit->CntBlockSize;
+					memcpy(outCap.srvCnt+outCap.srvCntSize,coit->CntBlock,min);
+					outCap.srvCntSize+=min;
 				}
 			}
 			_capBlocks.clear();

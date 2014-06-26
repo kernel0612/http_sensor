@@ -117,14 +117,21 @@ interaction* Interaction_List::get_matched_interaction_m(char saddr[],char daddr
 	for (crit=_inters.rbegin();crit!=_inters.rend();++crit)
 	{
 		one=(*crit);
-		if (one->get_server_info()->srcPort==sPort&&strcmp(one->get_server_info()->src,saddr)==0
-			&&strcmp(one->get_server_info()->des,daddr)==0)
+		if (one)
 		{
-			if (one->get_interaction_status()==INTERACTION_NORMAL)
+			if (one->get_server_info())
 			{
-				return one;
-			}	
+				if (one->get_server_info()->srcPort==sPort&&strcmp(one->get_server_info()->src,saddr)==0
+					&&strcmp(one->get_server_info()->des,daddr)==0)
+				{
+					if (one->get_interaction_status()==INTERACTION_NORMAL)
+					{
+						return one;
+					}	
+				}
+			}
 		}
+
 	}
 	return 0;
 }

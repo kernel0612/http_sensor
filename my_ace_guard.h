@@ -8,7 +8,7 @@ public:
 	my_ace_guard(ACE_Thread_Mutex& mutex);
 	~my_ace_guard(void);
 
-public:
+private:
 	ACE_Thread_Mutex& _mutex;
 };
 

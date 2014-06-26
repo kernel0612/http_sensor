@@ -1,7 +1,9 @@
 #ifndef INTERACTION_H
 #define INTERACTION_H
+#include <memory>
 #include "commondef.h"
 #include "TimeOut_Handler.h"
+using namespace std;
 class TimeOut_Handler;
 class interaction
 {
@@ -36,16 +38,24 @@ inline  void set_timeout_handler(TimeOut_Handler* th)
 {
 	_th=th;
 }
+//inline void set_timeout_handler(weak_ptr<TimeOut_Handler> wk_th)
+//{
+//	_wk_th=wk_th;
+//}
 inline  TimeOut_Handler* get_timeout_handler()
 {
 	return _th;
 }
-
+//inline  weak_ptr<TimeOut_Handler>& get_timeout_handler_wk()
+//{
+//	return _wk_th;
+//}
 private:
 	struct serverInfo* _server;
 	struct clientInfo* _client;
 	interaction_status _status;
 	TimeOut_Handler* _th;
+	//weak_ptr<TimeOut_Handler> _wk_th;
 };
 
 #endif 

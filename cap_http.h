@@ -9,9 +9,9 @@
 #include "proc_capCnt_block.h"
 #include "output_to_file.h"
 #include "output_to_db.h"
-//#include "nids.h"
-//#include "uuid/uuid.h"
-//#include "zlib.h"
+#include "nids.h"
+#include "uuid/uuid.h"
+#include "zlib.h"
 
 class cap_http
 {
@@ -21,7 +21,7 @@ public:
 	int init();
 	int run();
 	void exit();
-	void register_tcp(void(*p));
+	void register_tcp();
 
 	friend void http_protocol_callback(struct tcp_stream *tcp_http_connection, void **param);
 
@@ -53,12 +53,15 @@ private:
 	unsigned int my_min(unsigned int len1,unsigned int len2);
 
 	int my_uuid_generate(char out[],int len);
-	//int httpgzdecompress(Byte *zdata, uLong nzdata, Byte *data, uLong *ndata);
+	int httpgzdecompress(Byte *zdata, uLong nzdata, Byte *data, uLong *ndata);
 	int replace_str(char *sSrc, char *sMatchStr, char *sReplaceStr);
 	int print_one_interaction(interaction* in);
 
 	int init_proc_interactions();
 	int process_output_method(struct outputSerInfo* srv , struct outputCliInfo* clt);
+
+	cap_http(const cap_http& );
+	cap_http& operator =(const cap_http& );
 private:
 	ACE_Select_Reactor _select_reactor;
 	ACE_Reactor _reactor;

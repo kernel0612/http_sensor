@@ -26,9 +26,12 @@ protected:
 	unsigned int tail;
 	int full;
 	unsigned long maxSize;
-	ACE_Thread_Mutex  mutex;
-	ACE_Condition<ACE_Thread_Mutex> condNotfull;
-	ACE_Condition<ACE_Thread_Mutex> condNotempty;
+	//ACE_Thread_Mutex  mutex;
+	//ACE_Condition<ACE_Thread_Mutex> condNotfull;
+	//ACE_Condition<ACE_Thread_Mutex> condNotempty;
+	ACE_Recursive_Thread_Mutex mutex;
+	ACE_Condition<ACE_Recursive_Thread_Mutex> condNotfull;
+	ACE_Condition<ACE_Recursive_Thread_Mutex> condNotempty;
 	int quit_flag;
 
 };
@@ -44,7 +47,8 @@ my_fifo<T>::~my_fifo(void)
 template<typename T>
 unsigned int my_fifo<T>::get_element_size()
 {
-	my_ace_guard guard(mutex);
+	//my_ace_guard guard(mutex);
+	ACE_Guard<ACE_Recursive_Thread_Mutex> guard(mutex);
 	if (is_full()==0)
 	{
 		return maxSize;
