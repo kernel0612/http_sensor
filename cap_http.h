@@ -1,6 +1,7 @@
 #ifndef CAP_HTTP_H
 #define CAP_HTTP_H
 #include <vector>
+#include <sstream>
 #include "Interaction_List.h"
 #include "my_ace_guard.h"
 #include "my_berkeleyDBbased_fifo.h"
@@ -9,6 +10,7 @@
 #include "proc_capCnt_block.h"
 #include "output_to_file.h"
 #include "output_to_db.h"
+//#include "proc_reg_rules.h"
 #include "nids.h"
 #include "uuid/uuid.h"
 #include "zlib.h"
@@ -56,9 +58,15 @@ private:
 	int httpgzdecompress(Byte *zdata, uLong nzdata, Byte *data, uLong *ndata);
 	int replace_str(char *sSrc, char *sMatchStr, char *sReplaceStr);
 	int print_one_interaction(interaction* in);
+	int print_output_interaction(struct outputSerInfo* srv , struct outputCliInfo* clt);
 
 	int init_proc_interactions();
 	int process_output_method(struct outputSerInfo* srv , struct outputCliInfo* clt);
+
+	int build_output_method(struct outputSerInfo& outsrv,struct outputCliInfo& outclt,struct serverInfo* psrv,struct clientInfo* pclt,
+		char sget[],unsigned int slen,char cget[],unsigned int clen);
+
+	int get_regex_content(char input[],unsigned int inlen,char output[],unsigned int& outlen);
 
 	cap_http(const cap_http& );
 	cap_http& operator =(const cap_http& );
@@ -72,9 +80,7 @@ private:
 	ACE_Thread_Mutex _clientinfo_mutex;
 	int _quit;
 	proc_capCnt_block* _pccb;
-	//TimeOut_Handler* th;
-	//TimeOut_Handler* th1;
-	//TimeOut_Handler* th2;
+	//proc_reg_rules _pcrr;
 
 	vector<proc_output_interaction*> _proc_outputs;
 	

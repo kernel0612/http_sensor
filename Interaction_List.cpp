@@ -34,6 +34,7 @@ int Interaction_List::clear()
 }
 int Interaction_List::delete_one_interaction(interaction* in)
 {
+	my_ace_guard  guard(_mutex);
 	if (!in)
 	{
 		return -1;

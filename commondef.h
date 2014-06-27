@@ -3,7 +3,7 @@
 #define  MAX_BUFF_SIZE             65535
 #define  COOKIE_BUF_SIZE           4096
 #define  URL_BUF_SIZE              4096
-#define  METHOD_BUF_SIZE          1024
+#define  METHOD_BUF_SIZE          32
 #define  REQUEST_CONTENT_BUF_SIZE 1024
 #define  HOST_BUF_SIZE             64
 #define  DES_BUF_SIZE             32
@@ -21,7 +21,7 @@
 #define  DATE_BUF_SIZE             32
 #define  CAP_CONTENT_BLOCK_SIZE     512
 
-#define  PARSE_CONTENT_THREAD_NUM    1
+#define  PARSE_CONTENT_THREAD_NUM    10
 struct serverInfo 
 {
 	char cookie[COOKIE_BUF_SIZE];

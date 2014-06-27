@@ -34,14 +34,8 @@ int cap_http::init()
 	{
 		return ret;
 	}
-	//th=new TimeOut_Handler(0,5,&_reactor);
-	//th->set_timer();
-	//th->cancel_timer();
-	//th1=new TimeOut_Handler(0,6,&_reactor);
-	//th1->set_timer();
-	//th2=new TimeOut_Handler(0,7,&_reactor);
-	//th2->set_timer();
-	//ret=init_proc_interactions();
+	ret=init_proc_interactions();
+	//ret=_pcrr.open_rules_xml("rules.xml");
 	return ret;
 }
 int cap_http::run()
@@ -212,6 +206,7 @@ void cap_http::parse_server_data(char content[], int number,char saddr[],char da
 	int entity_index=0;
 	char entity_content[REQUEST_CONTENT_BUF_SIZE]={0};
 	int ret;
+	int minSize=0;
 	//-------------------------------------------------
 	for (i=0;i<number;i++)
 	{
@@ -294,11 +289,12 @@ void cap_http::parse_server_data(char content[], int number,char saddr[],char da
 	                       //no content
 							break;
 						}
-						memcpy(entity_content,content+i+4,my_min(number-i-4,REQUEST_CONTENT_BUF_SIZE-1));
+						memcpy(entity_content,content+i+4,minSize=my_min(number-i-4,REQUEST_CONTENT_BUF_SIZE-1));
 						if (serinfo)
 						{
 							//strncpy(serinfo->content,entity_content,sizeof(serinfo->content)/sizeof(serinfo->content[0]));//1024
-							memcpy(serinfo->content,entity_content,REQUEST_CONTENT_BUF_SIZE-1);
+							memcpy(serinfo->content,entity_content,minSize);
+							serinfo->cntSize+=minSize;
 						}
 					    break;
 					}
@@ -318,7 +314,6 @@ void cap_http::parse_server_data(char content[], int number,char saddr[],char da
 	if (pinter)
 	{
         _interactons.put(pinter);
-		//cout <<"here we push one interaction into interaction_list"<<endl;
 	}
 	else
 		cout <<"here we can't push one interaction into interaction_list"<<endl;
@@ -400,7 +395,11 @@ void cap_http::parse_client_data(char content[], int number,char saddr[],char da
 						if (strstr(temp,"HTTP"))
 						{
 							strncpy(resCode,temp,my_min(strlen(temp),RESPONSECODE_BUF_SIZE));
-							my_uuid_generate(client->responseID,64);
+							if (my_uuid_generate(responseID,64)!=0)
+							{
+								cout <<"response uuid generate failed"<<endl;
+							}
+							
 						}
 						if (strstr(temp, "Date"))
 						{
@@ -636,9 +635,9 @@ int cap_http::create_one_interaction(interaction** one)
 		memset((*one)->get_client_info(),0,sizeof(struct clientInfo));
 		memset((*one)->get_server_info(),0,sizeof(struct serverInfo));
 		(*one)->set_interactin_status(INTERACTION_NORMAL);
-		TimeOut_Handler* th=new TimeOut_Handler(*one,10,&_reactor);
+	/*	TimeOut_Handler* th=new TimeOut_Handler(*one,10,&_reactor);
 		th->set_timer();
-		(*one)->set_timeout_handler(th);
+		(*one)->set_timeout_handler(th);*/
 	}
 	catch (...)
 	{
@@ -715,6 +714,37 @@ int cap_http::print_one_interaction(interaction* in)
 	}
 	return -1;
 }
+int cap_http::print_output_interaction(struct outputSerInfo* srv , struct outputCliInfo* clt)
+{
+	if (srv)
+	{
+		printf("************************************************\n");
+		printf("requestID:%s\n",srv->requestID);
+		printf("url:%s\n",srv->url);
+		printf("method:%s\n",srv->method);
+		printf("host:%s\n",srv->host);
+		printf("src:%s\n",srv->src);
+		printf("srcPort:%i\n",srv->srcPort);
+		printf("des:%s\n",srv->des);
+		printf("desPort:%i\n",srv->desPort);
+		printf("httptype:%s\n",srv->httpType);
+		printf("referer:%s\n",srv->refer);
+		printf("accept:%s\n",srv->accept);
+		printf("acceptEncode:%s\n",srv->accEncod);
+		printf("userAgent:%s\n",srv->userAgent);
+		printf("content:%s\n",srv->content);
+	}
+	if (clt)
+	{
+		printf("+++++++++++++++++++++++++++++++++++++++++++++++++\n");
+		printf("responseID:%s\n",clt->responseID);
+		printf("requestID:%s\n",clt->requestID);
+		printf("contentType:%s\n",clt->contentType);
+		printf("date:%s\n",clt->date);
+		printf("responseCode:%s\n",clt->resCode);
+		printf("content:%s\n",clt->content);	
+	}
+}
 int cap_http::init_request_interaction(interaction* pinter,char request[],char src[],char des[],unsigned short 
 	sport,unsigned short dport)
 {
@@ -727,23 +757,29 @@ int cap_http::init_request_interaction(interaction* pinter,char request[],char s
 	{
 		return -1;
 	}
-	char method[32]={0};
-	char resource[10240]={0};
-	char httptype[32]={0};
+	//char method[512]={0};
+	//char resource[4096]={0};
+	//char httptype[512]={0};
+	string srequest(request);
+	stringstream sstream(srequest);
+	string smethod("");
+	string sresource("");
+	string shttptype("");
+	sstream>>smethod>>sresource>>shttptype;
 	unsigned int http_head_len=0;
 	unsigned int desAddr_len=0;
 	strncpy(serinfo->src,src,strlen(src));
 	strncpy(serinfo->des,des,strlen(des));
 	serinfo->srcPort=sport;
 	serinfo->desPort=dport;
-	sscanf(request, "%s %s %s", method, resource, httptype);//分割为 GET  resource http/1.1 形式
-	strncpy(serinfo->method,method,my_min(strlen(method),METHOD_BUF_SIZE-1));
+//	sscanf(request, "%s %s %s", method, resource, httptype);//分割为 GET  resource http/1.1 形式  容易溢出 改用stringstream
+	strncpy(serinfo->method,smethod.c_str(),my_min(smethod.length(),METHOD_BUF_SIZE-1));
 	http_head_len=strlen("http://");
 	strncpy(serinfo->url,"http://",http_head_len);
 	desAddr_len=strlen(serinfo->des);
 	strncat(serinfo->url,serinfo->des,desAddr_len);
-	strncat(serinfo->url,resource,my_min(strlen(resource),URL_BUF_SIZE-http_head_len-desAddr_len-1));
-	strncpy(serinfo->httpType,httptype,my_min(strlen(httptype),HTTPTYPE_BUFF_SIZE-1));
+	strncat(serinfo->url,sresource.c_str(),my_min(sresource.length(),URL_BUF_SIZE-http_head_len-desAddr_len-1));
+	strncpy(serinfo->httpType,shttptype.c_str(),my_min(shttptype.length(),HTTPTYPE_BUFF_SIZE-1));
 	my_uuid_generate(serinfo->requestID,64);
 	return 0;
 }
@@ -825,8 +861,10 @@ int cap_http::my_uuid_generate(char out[],int len)
 
 int cap_http::httpgzdecompress(Byte *zdata, uLong nzdata, Byte *data, uLong *ndata)
 {
+	if(!zdata||nzdata<=0||!data||!ndata)
+		return -1;
 	int err = 0;
-	z_stream d_stream = {0}; /* decompression stream */
+	z_stream d_stream = {0}; // decompression stream 
 	static char dummy_head[2] =
 	{
 		0x8 + 0x7 * 0x10,
@@ -839,9 +877,8 @@ int cap_http::httpgzdecompress(Byte *zdata, uLong nzdata, Byte *data, uLong *nda
 	d_stream.avail_in = 0;
 	d_stream.next_out = data;
 	if(inflateInit2(&d_stream,47 ) != Z_OK) return -1;
-	printf("ds.total_out:%d,ndata:%d,ds.total_in:%d,nzdata:%d\n",d_stream.total_out,*ndata,d_stream.total_in,nzdata);
 	while (d_stream.total_out < *ndata && d_stream.total_in < nzdata) {
-		d_stream.avail_in = d_stream.avail_out = 1; /* force small buffers */
+		d_stream.avail_in = d_stream.avail_out = 1; // force small buffers 
 		if((err = inflate(&d_stream, Z_NO_FLUSH)) == Z_STREAM_END) break;
 		if(err != Z_OK )
 		{
@@ -860,9 +897,7 @@ int cap_http::httpgzdecompress(Byte *zdata, uLong nzdata, Byte *data, uLong *nda
 			else return -1;
 		}
 	}
-	printf("quit whileloop\n");
 	if(inflateEnd(&d_stream) != Z_OK) return -1;
-	printf("uncp successful\n");
 	*ndata = d_stream.total_out;
 	return 0;
 }
@@ -925,6 +960,10 @@ void cap_http::output_interaction_data(void* args)
 	struct outputCliInfo outclt;
 	int outsrvlen=sizeof(struct outputSerInfo);
 	int outcltlen=sizeof(struct outputCliInfo);
+	char sget[GET_REGEX_CONTENT_SIZE]={0};
+	char cget[GET_REGEX_CONTENT_SIZE]={0};
+	unsigned int  slen=0;
+	unsigned int  clen=0;
 	while(!ins->_quit)
 	{
 		ret=ins->get_interaction_list().pop(&pinter);
@@ -936,36 +975,45 @@ void cap_http::output_interaction_data(void* args)
 		{
 			psrv=pinter->get_server_info();
 			pclt=pinter->get_client_info();
-			ins->print_one_interaction(pinter);
-			//if (pclt)
-			//{		
-			//	if (pclt->isChunked)
-			//	{
-			//		if (ins->extract_chunked_data(pclt->content,pclt->contentSize,tmpbuff,MAX_BUFF_SIZE,outlen,complete)==0)
-			//		{
-			//			memcpy(pclt->content,tmpbuff,pclt->contentSize=ins->my_min(outlen,pclt->contentSize));
-			//		}
-			//	}
-			//	// uncompress
-			//	if (ins->httpgzdecompress((Byte*)pclt->content,pclt->contentSize,(Byte*)uncombuff,&uncomlen)==0)
-			//	{
-			//		//after uncompress  begin process output method
-			//		if (psrv)
-			//		{
-
-			//			//begin regex rules
-
-			//			
-			//			//end regex rules
-			//			memset(&outsrv,0,outsrvlen);
-			//			memset(&outclt,0,outcltlen);
-			//			// 将识别 摘取的内容拷贝到 outsrv和outclt中
-			//		    ins->process_output_method(&outsrv,&outclt);
-			//		}
-
-			//	}
-			//	
-			//}
+			//ins->print_one_interaction(pinter);
+			if (pclt)
+			{		
+				memset(cget,0,GET_REGEX_CONTENT_SIZE);
+				memset(sget,0,GET_REGEX_CONTENT_SIZE);
+				clen=0;
+				slen=0;
+				memset(&outsrv,0,outsrvlen);
+				memset(&outclt,0,outcltlen);
+				if (pclt->isChunked)
+				{
+					if (ins->extract_chunked_data(pclt->content,pclt->contentSize,tmpbuff,MAX_BUFF_SIZE,outlen,complete)==0)
+					{
+						memcpy(pclt->content,tmpbuff,pclt->contentSize=ins->my_min(outlen,pclt->contentSize));
+					}
+				}
+				// uncompress
+				if (ins->httpgzdecompress((Byte*)pclt->content,pclt->contentSize,(Byte*)uncombuff,(uLong*)&uncomlen)==0)
+				{
+					ins->get_regex_content(uncombuff,uncomlen,cget,clen);   //
+				}
+				else
+				{
+					cout <<"decompress http gzip data error..."<<endl;
+					ins->get_regex_content(pclt->content,pclt->contentSize,cget,clen);
+				}
+				if (psrv)
+				{			
+					ins->get_regex_content(psrv->content,psrv->cntSize,sget,slen);	
+					ins->build_output_method(outsrv,outclt,psrv,pclt,sget,slen,cget,clen);
+				}
+				if (ins->process_output_method(&outsrv,&outclt)!=0)
+				{
+					cout <<"process_output_method error"<<endl;
+				}
+				;
+				ins->print_output_interaction(&outsrv,&outclt);
+				
+			}
 			//delete 
 			ins->get_interaction_list().delete_one_interaction(pinter);
 		}
@@ -986,7 +1034,7 @@ void cap_http::nids_cap_loop(void* args)
 	cap_http* ins=cap_http::get_instance();
 	ACE_DEBUG((LM_INFO,"nids_cap_loop thread begin\n"));
 	int ret=0;
-	 ret=nids_run();
+	ret=nids_run();
 	ACE_DEBUG((LM_INFO,"nids_cap_loop thread quit\n"));
 }
 void cap_http::monitor_thread(void* args)
@@ -1003,7 +1051,8 @@ void cap_http::monitor_thread(void* args)
 			ins->exit();
 			break;
 		}
-		ACE_OS::sleep(2);
+		else
+			continue;
 	}
 	ACE_DEBUG((LM_INFO,"monitor_thread quit\n"));
 
@@ -1062,4 +1111,56 @@ int cap_http::process_output_method(struct outputSerInfo* srv , struct outputCli
 		++coit;
 	}
 	return 0;
+}
+int cap_http::build_output_method(struct outputSerInfo& outsrv,struct outputCliInfo& outclt,struct serverInfo* psrv,
+struct clientInfo* pclt, char sget[],unsigned int slen,char cget[],unsigned int clen)
+{
+	if (!psrv||!pclt||!sget||!cget)
+	{
+		return -1;
+	}
+	memcpy(outclt.contentType,pclt->contentType,strlen(pclt->contentType));
+	memcpy(outclt.date,pclt->date,strlen(pclt->date));
+	memcpy(outclt.requestID,pclt->requestID,strlen(pclt->requestID));
+	memcpy(outclt.responseID,pclt->responseID,strlen(pclt->responseID));
+	memcpy(outclt.resCode,pclt->resCode,strlen(pclt->resCode));
+    memcpy(outclt.content,cget,my_min(clen,GET_REGEX_CONTENT_SIZE-1));
+
+	memcpy(outsrv.accEncod,psrv->accEncod,strlen(psrv->accEncod));
+	memcpy(outsrv.accept,psrv->accept,strlen(psrv->accept));
+	memcpy(outsrv.cookie,psrv->cookie,strlen(psrv->cookie));
+	memcpy(outsrv.des,psrv->des,strlen(psrv->des));
+	memcpy(outsrv.host,psrv->host,strlen(psrv->host));
+	memcpy(outsrv.httpType,psrv->httpType,strlen(psrv->httpType));
+	memcpy(outsrv.method,psrv->method,strlen(psrv->method));
+	memcpy(outsrv.refer,psrv->refer,strlen(psrv->refer));
+	memcpy(outsrv.requestID,psrv->requestID,strlen(psrv->requestID));
+	memcpy(outsrv.src,psrv->src,strlen(psrv->src));
+	memcpy(outsrv.url,psrv->url,strlen(psrv->url));
+	memcpy(outsrv.userAgent,psrv->userAgent,strlen(psrv->userAgent));
+	outsrv.desPort=psrv->desPort;
+	outsrv.srcPort=psrv->srcPort;
+    memcpy(outsrv.content,sget,my_min(slen,GET_REGEX_CONTENT_SIZE-1));
+	return 0;
+}
+int cap_http::get_regex_content(char input[],unsigned int inlen,char output[],unsigned int& outlen)
+{
+	if (!input||!inlen||!output||!outlen)
+	{
+		return -1;
+	}
+	//process
+	string strRet="";
+	int retlen=0;
+	int minsize=0;
+//	strRet=_pcrr.excute_regex_rules();
+	retlen=strRet.length();
+	if (retlen>0)
+	{
+		memcpy(output,strRet.c_str(),minsize=my_min(retlen,GET_REGEX_CONTENT_SIZE-1));
+		outlen=minsize;
+		return 0;
+	}
+	//process
+	return -1;
 }
