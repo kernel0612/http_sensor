@@ -14,12 +14,14 @@ ACE_Event_Handler(reactor),_interaction(inter),_reactor(reactor),_tiv(delay)
 TimeOut_Handler::~TimeOut_Handler(void)
 {
 	ACE_DEBUG((LM_DEBUG,"~TimeOut_Handler %d\n",timeID));
+	
 }
 int TimeOut_Handler::handle_timeout(const ACE_Time_Value &current_time, const void *act )
 {
-	ACE_DEBUG((LM_DEBUG,"time out %d\n",timeID));
+	
 	if (_interaction)
 	{
+		ACE_DEBUG((LM_DEBUG,"time out %d\n",timeID));
     	_interaction->set_interactin_status(INTERACTION_TIMEOUT);
 	}
 	//if (_sp_inter)
@@ -35,12 +37,10 @@ int TimeOut_Handler::set_timer()
 int TimeOut_Handler::cancel_timer()
 {
 	int ret=0;
-	ret=_reactor->cancel_timer(timeID);
-	delete this;
+	ret=_reactor->cancel_timer(this);
 	return ret;
 }
 int TimeOut_Handler::handle_close(ACE_HANDLE handle, ACE_Reactor_Mask mask)
 {
-	delete this;
 	return 0;
 }

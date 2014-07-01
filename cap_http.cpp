@@ -348,15 +348,12 @@ void cap_http::parse_client_data(char content[], int number,char saddr[],char da
 		cout <<"can't find matched interaction"<<endl;
 		return;
 	}
-	//if (intern->get_interaction_status()!=INTERACTION_TIMEOUT)
-	//{
-	//	th=intern->get_timeout_handler();
-	//	if (th)
-	//	{
-	//		th->cancel_timer();
-	//	}
-	//}
-
+	if (intern->get_interaction_status()!=INTERACTION_NORMAL)
+	{
+		cout <<"current interaction time out"<<endl;
+		return ;
+	}
+    intern->get_timeout_handler()->cancel_timer();
 	client=intern->get_client_info();
     //set filter
 
@@ -615,7 +612,7 @@ int cap_http::run_output_loop()
 }
 int cap_http::run_nids_cap_loop()
 {
-	return ACE_Thread_Manager::instance()->spawn((ACE_THR_FUNC)nids_cap_loop,0);
+	return ACE_Thread_Manager::instance()->spawn((ACE_THR_FUNC)nids_cap_loop,0,0,&_nids_loop_id);
 }
 int cap_http::run_monitor_thread()
 {
@@ -635,9 +632,9 @@ int cap_http::create_one_interaction(interaction** one)
 		memset((*one)->get_client_info(),0,sizeof(struct clientInfo));
 		memset((*one)->get_server_info(),0,sizeof(struct serverInfo));
 		(*one)->set_interactin_status(INTERACTION_NORMAL);
-	/*	TimeOut_Handler* th=new TimeOut_Handler(*one,10,&_reactor);
+		TimeOut_Handler* th=new TimeOut_Handler(*one,10,&_reactor);
 		th->set_timer();
-		(*one)->set_timeout_handler(th);*/
+		(*one)->set_timeout_handler(th);
 	}
 	catch (...)
 	{

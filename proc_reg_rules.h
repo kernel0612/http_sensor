@@ -3,8 +3,12 @@
 #include <iostream>
 #include <string>
 #include "tinyxml.h"
+#include "regex_rules.h"
 //#include "Pcre.h"
 using namespace std;
+
+
+
 class proc_reg_rules
 {
 public:
@@ -15,6 +19,7 @@ public:
 
 private:
 	//Pcre* _pcre;
+	//regex_rules _rules;
 };
 
 #endif

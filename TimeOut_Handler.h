@@ -14,6 +14,7 @@ class TimeOut_Handler:public ACE_Event_Handler
 {
 public:
 	TimeOut_Handler(interaction* inter,unsigned int delay,ACE_Reactor* reactor);
+	~TimeOut_Handler(void);
 	//TimeOut_Handler(shared_ptr<interaction> sp_inter,unsigned int delay,ACE_Reactor* reactor);
 	int set_timer();
 	int handle_timeout(const ACE_Time_Value &current_time, const void *act /* = 0 */);
@@ -21,11 +22,12 @@ public:
 	int cancel_timer();
 
 private:
-	~TimeOut_Handler(void);
+	
 	int timeID;
 	interaction* _interaction;
 	ACE_Reactor* _reactor;
 	ACE_Time_Value _tiv;
+	ACE_Thread_Mutex _mutex;
 //	shared_ptr<interaction> _sp_inter;
 };
 

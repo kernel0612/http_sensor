@@ -83,7 +83,7 @@ private:
 	//proc_reg_rules _pcrr;
 
 	vector<proc_output_interaction*> _proc_outputs;
-	
+	ACE_thread_t _nids_loop_id;
 };
 
 #endif

@@ -51,7 +51,14 @@ int Interaction_List::delete_one_interaction(interaction* in)
 	{
 		delete in->get_server_info();
 	}
+	if (in->get_timeout_handler())
+	{
+		in->get_timeout_handler()->cancel_timer();
+		delete in->get_timeout_handler();
+		in->set_timeout_handler(0);
+	}
 	delete in;
+	in=0;
 	return 0;
 }
 unsigned int Interaction_List::get_list_size()
