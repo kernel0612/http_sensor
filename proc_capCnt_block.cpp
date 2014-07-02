@@ -59,7 +59,11 @@ int proc_capCnt_block::append_block_to_proccess(struct cap_content_block& block,
 					outCap.srvCntSize+=min;
 				}
 			}
-			_capBlocks.clear();
+			{
+				vector<struct cap_content_block> temp;
+				_capBlocks.swap(temp);
+			}
+			
 			return 0;
 		}
 	}

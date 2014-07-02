@@ -21,7 +21,7 @@
 #define  DATE_BUF_SIZE             32
 #define  CAP_CONTENT_BLOCK_SIZE     512
 
-#define  PARSE_CONTENT_THREAD_NUM    10
+#define  PARSE_CONTENT_THREAD_NUM    1
 struct serverInfo 
 {
 	char cookie[COOKIE_BUF_SIZE];
@@ -95,7 +95,7 @@ struct CapContent               //捕获的两端内容
 };
 struct cap_content_block
 {
-	char CntBlock[CAP_CONTENT_BLOCK_SIZE];   
+	char CntBlock[CAP_CONTENT_BLOCK_SIZE+1];   
 	unsigned int CntBlockSize;
 	char Src[32];
 	char Des[32];

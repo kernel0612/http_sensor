@@ -25,6 +25,13 @@ public:
 	 int enabled();
 	 int delete_one_interaction(interaction* in);
 
+	 int set_matched_client_isChunked(struct clientInfo* client,int chunked);
+	 int malloc_matched_client_content(struct clientInfo* client,int len);
+	 int set_matched_client_isComplete(struct clientInfo* client,int complete);
+	 int set_matched_client_new_sip_info(struct clientInfo* client,char requestID[],char responseID[]
+	 ,char contentType[],char resCode[],char date[]);
+	 int set_matched_client_chunked_content(struct clientInfo* client,char chunked[],int len);
+	 int set_matched_client_not_chunked_content(struct clientInfo* client,char content[],int len);
 private:
 	unsigned int _count;
 	ACE_Thread_Mutex  _mutex;

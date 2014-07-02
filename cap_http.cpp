@@ -18,6 +18,10 @@ cap_http::~cap_http(void)
 		coit=_proc_outputs.erase(coit);
 		delete poi;
 	}	
+	if (_capContents_fifo)
+	{
+		delete _capContents_fifo;
+	}
 }
 
 int cap_http::init()
@@ -77,7 +81,7 @@ void http_protocol_callback(struct tcp_stream *tcp_http_connection, void **param
 	unsigned int blockNum=0;
 	unsigned int writebegin=0;
 	unsigned int currBlockSize=0;
-
+	unsigned int min=0;
 	if (tcp_http_connection->nids_state == NIDS_JUST_EST)
 	{
 		if (tcp_http_connection->addr.dest != 80)
@@ -125,9 +129,9 @@ void http_protocol_callback(struct tcp_stream *tcp_http_connection, void **param
 			for (int i=1;i<=blockNum;i++)
 			{
 				currBlockSize=i<blockNum?(CAP_CONTENT_BLOCK_SIZE):(hlf->count_new-(blockNum-1)*CAP_CONTENT_BLOCK_SIZE);
-				memcpy(block.CntBlock,hlf->data+writebegin,currBlockSize);
+				memcpy(block.CntBlock,hlf->data+writebegin,min=ins->my_min(currBlockSize,CAP_CONTENT_BLOCK_SIZE));
 				block.CurrBlockNum=i;
-				block.CntBlockSize+=currBlockSize;
+				block.CntBlockSize+=min;
 				writebegin+=CAP_CONTENT_BLOCK_SIZE;
 				if (ins->get_capContents_fifo()->push_back(block)!=0)
 				{
@@ -153,9 +157,9 @@ void http_protocol_callback(struct tcp_stream *tcp_http_connection, void **param
 			for (int i=1;i<=blockNum;i++)
 			{
 				currBlockSize=i<blockNum?(CAP_CONTENT_BLOCK_SIZE):(hlf->count_new-(blockNum-1)*CAP_CONTENT_BLOCK_SIZE);
-				memcpy(block.CntBlock,hlf->data+writebegin,currBlockSize);
+				memcpy(block.CntBlock,hlf->data+writebegin,min=ins->my_min(currBlockSize,CAP_CONTENT_BLOCK_SIZE));
 				block.CurrBlockNum=i;
-				block.CntBlockSize+=currBlockSize;
+				block.CntBlockSize+=min;
 				writebegin+=CAP_CONTENT_BLOCK_SIZE;
 				if (ins->get_capContents_fifo()->push_back(block)!=0)
 				{
@@ -338,7 +342,6 @@ void cap_http::parse_client_data(char content[], int number,char saddr[],char da
 	char date[DATE_BUF_SIZE]={0};
 	char responseID[RESPONSEID_BUF_SIZE]={0};
 	char contentType[CONTENTTYPE_BUF_SIZE]={0};
-	char* pmalloc=0;
 	int continued=0;
 	int writeLen=0;
 	int extract_chunk_ret=0;
@@ -413,20 +416,10 @@ void cap_http::parse_client_data(char content[], int number,char saddr[],char da
 							}	
 							else
 							{
-								try
+								if (contentSize>MAX_BUFF_SIZE)
 								{
-									 if (contentSize>MAX_BUFF_SIZE)
-									 {
-										 contentSize=MAX_BUFF_SIZE;
-									 }
-									 pmalloc=new char[contentSize+1];
-									 memset(pmalloc,0,contentSize+1);
-								}
-								catch(...)
-								{
-									delete [] pmalloc;
-									pmalloc=0;
-								}                                
+									contentSize=MAX_BUFF_SIZE;
+								}                        
 							}
 						}
 						if (strstr(temp, "Content-Type"))
@@ -471,79 +464,30 @@ void cap_http::parse_client_data(char content[], int number,char saddr[],char da
 		}
 	}
 
-	int minsize=0;
-	char* tmp_client_content=0;
-	int tmp_client_content_len=0;
 	//lock
 	 //将内容写到链表的clientinfo中
 	{
-		my_ace_guard guard(_clientinfo_mutex);
-		if (!(client->complete))
-		{
+
 			if (!continued)
 			{
 				if (chunkflag)
 				{
-					client->isChunked=1;
+					_interactons.set_matched_client_isChunked(client,1);
 				}
 				else
 				{
-					client->content=pmalloc;
-					client->complete=complete;
-					client->contentSize=contentSize;
+					_interactons.malloc_matched_client_content(client,contentSize);
+					_interactons.set_matched_client_isComplete(client,complete);
 				}
-				memcpy(client->responseID,responseID,RESPONSEID_BUF_SIZE);
-				memcpy(client->requestID,intern->get_server_info()->requestID,REQUESTID_BUF_SIZE);
-				memcpy(client->contentType,contentType,CONTENTTYPE_BUF_SIZE);
-				memcpy(client->resCode,resCode,RESPONSECODE_BUF_SIZE);
-				memcpy(client->date,date,DATE_BUF_SIZE);
+				_interactons.set_matched_client_new_sip_info(client,intern->get_server_info()->requestID
+					,responseID,contentType,resCode,date);
 			}
 
-			if (client->isChunked)
-			{
-				if (client->content)
-				{
-					tmp_client_content_len=client->contentSize;
-					tmp_client_content=new char[tmp_client_content_len+1];
-					memset(tmp_client_content,0,tmp_client_content_len+1);
-					memcpy(tmp_client_content,client->content,tmp_client_content_len);
-					delete []client->content;
-					client->content=0;
-				}
-				client->content=new char[tmp_client_content_len+writeLen+1];
-				memset(client->content,0,tmp_client_content_len+writeLen+1);
-				if (tmp_client_content)
-				{
-					memcpy(client->content,tmp_client_content,tmp_client_content_len);
-				}	
-				memcpy(client->content+tmp_client_content_len,entity_content,writeLen);
-				client->contentSize+=writeLen;
-				if (tmp_client_content)
-				{
-					delete [] tmp_client_content;
-				}
-
-			}
-			else
-			{
-				if (!client->complete)
-				{
-					minsize=my_min(writeLen,client->contentSize-client->currentSize);
-					if (client->content)
-					{	
-						memcpy(client->content+client->currentSize,entity_content,minsize);
-					}				
-					client->currentSize+=minsize;
-					if (client->contentSize==client->currentSize)
-					{
-						client->complete=1;
-					}
-				}
-
-			}
+		    _interactons.set_matched_client_chunked_content(client,entity_content,writeLen);
+			_interactons.set_matched_client_not_chunked_content(client,entity_content,writeLen);
 
 
-		}
+	
 	}
 
 	//unlock
@@ -638,21 +582,23 @@ int cap_http::create_one_interaction(interaction** one)
 	}
 	catch (...)
 	{
-		if (*one)
-		{
-			if ((*one)->get_client_info())
-			{
-				delete (*one)->get_client_info();
-				(*one)->set_client_info(0);
-			}
-			if ((*one)->get_server_info())
-			{
-				delete (*one)->get_server_info();
-				(*one)->set_server_info(0);
-			}
-			delete (*one);
-			*one=0;
-		}
+		cout <<"out of memory"<<endl;
+		::exit(1);
+		//if (*one)
+		//{
+		//	if ((*one)->get_client_info())
+		//	{
+		//		delete (*one)->get_client_info();
+		//		(*one)->set_client_info(0);
+		//	}
+		//	if ((*one)->get_server_info())
+		//	{
+		//		delete (*one)->get_server_info();
+		//		(*one)->set_server_info(0);
+		//	}
+		//	delete (*one);
+		//	*one=0;
+		//}
 		return -1;
 	}
 	return 0;
@@ -873,10 +819,13 @@ int cap_http::httpgzdecompress(Byte *zdata, uLong nzdata, Byte *data, uLong *nda
 	d_stream.next_in  = zdata;
 	d_stream.avail_in = 0;
 	d_stream.next_out = data;
-	if(inflateInit2(&d_stream,47 ) != Z_OK) return -1;
-	while (d_stream.total_out < *ndata && d_stream.total_in < nzdata) {
+	if(inflateInit2(&d_stream,47 ) != Z_OK)
+		return -1;
+	while (d_stream.total_out < *ndata && d_stream.total_in < nzdata)
+	{
 		d_stream.avail_in = d_stream.avail_out = 1; // force small buffers 
-		if((err = inflate(&d_stream, Z_NO_FLUSH)) == Z_STREAM_END) break;
+		if((err = inflate(&d_stream, Z_NO_FLUSH)) == Z_STREAM_END) 
+			break;
 		if(err != Z_OK )
 		{
 			if(err == Z_DATA_ERROR)
@@ -886,15 +835,19 @@ int cap_http::httpgzdecompress(Byte *zdata, uLong nzdata, Byte *data, uLong *nda
 				if((err = inflate(&d_stream, Z_NO_FLUSH)) != Z_OK)
 				{
 					printf("err: Z_data_error\n");
+					inflateEnd(&d_stream);
 					return -1;
 				}
 				printf("err: Z_not_OK\n");
 			}
 
-			else return -1;
+			else 
+				inflateEnd(&d_stream);
+				return -1;
 		}
 	}
-	if(inflateEnd(&d_stream) != Z_OK) return -1;
+	if(inflateEnd(&d_stream) != Z_OK) 
+		return -1;
 	*ndata = d_stream.total_out;
 	return 0;
 }
@@ -1069,25 +1022,27 @@ int cap_http::init_proc_interactions()
 			else
 				return -1;
 		}
-		poi=new output_to_file;
-		if (poi)
-		{
-			if (poi->init()==0)
-			{
-				_proc_outputs.push_back(poi);
-			}
-			else
-				return -1;
-		}
+		//poi=new output_to_file;
+		//if (poi)
+		//{
+		//	if (poi->init()==0)
+		//	{
+		//		_proc_outputs.push_back(poi);
+		//	}
+		//	else
+		//		return -1;
+		//}
 	}
 	catch (...)
 	{
-		if (poi)
-		{
-			delete poi;
-		}
-		cout <<"init proc_interactions failed"<<endl;
-		return -1;
+		//if (poi)
+		//{
+		//	delete poi;
+		//}
+		//cout <<"init proc_interactions failed"<<endl;
+		//return -1;
+		cout <<"out of memory"<<endl;
+		::exit(1);
 	}
 	return 0;
 
