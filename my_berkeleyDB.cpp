@@ -38,7 +38,7 @@ int my_berkeleyDB::open(const char* dbname,DBTYPE type)
 	{
 		return ret;
 	}
-	if (ret=_env->set_cachesize(_env,0,1024*1024*64,0)!=0)
+	if (ret=_env->set_cachesize(_env,0,1024*1024,0)!=0)
 	{
 		return ret;
 	}
@@ -87,7 +87,7 @@ int my_berkeleyDB::open(const char* dbname)
 	{
 		return ret;
 	}
-	if (ret=_env->set_cachesize(_env,0,1024*1024*64,0)!=0)
+	if (ret=_env->set_cachesize(_env,0,1024*1024,0)!=0)
 	{
 		return ret;
 	}

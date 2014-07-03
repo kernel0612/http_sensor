@@ -21,7 +21,7 @@
 #define  DATE_BUF_SIZE             32
 #define  CAP_CONTENT_BLOCK_SIZE     512
 
-#define  PARSE_CONTENT_THREAD_NUM    1
+#define  PARSE_CONTENT_THREAD_NUM    5
 struct serverInfo 
 {
 	char cookie[COOKIE_BUF_SIZE];

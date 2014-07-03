@@ -36,7 +36,7 @@ private:
 	unsigned int _count;
 	ACE_Thread_Mutex  _mutex;
 	list<interaction*> _inters;
-	ACE_Condition<ACE_Thread_Mutex> _notlessthan50;
+	ACE_Condition<ACE_Thread_Mutex> _notlessthan100;
 	typedef enum
 	{
 		ENABLED,

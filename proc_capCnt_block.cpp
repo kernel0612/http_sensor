@@ -40,6 +40,7 @@ int proc_capCnt_block::append_block_to_proccess(struct cap_content_block& block,
 				{
 					min=((MAX_BUFF_SIZE-1)-outCap.cliCntSize)<coit->CntBlockSize?
 						((MAX_BUFF_SIZE-1)-outCap.cliCntSize):coit->CntBlockSize;
+					min=min<CAP_CONTENT_BLOCK_SIZE?min:CAP_CONTENT_BLOCK_SIZE;
 					memcpy(outCap.cliCnt+outCap.cliCntSize,coit->CntBlock,min);
 					outCap.cliCntSize+=min;
 				}
@@ -55,6 +56,7 @@ int proc_capCnt_block::append_block_to_proccess(struct cap_content_block& block,
 				{
 					min=((MAX_BUFF_SIZE-1)-outCap.srvCntSize)<coit->CntBlockSize?
 						((MAX_BUFF_SIZE-1)-outCap.srvCntSize):coit->CntBlockSize;
+					min=min<CAP_CONTENT_BLOCK_SIZE?min:CAP_CONTENT_BLOCK_SIZE;
 					memcpy(outCap.srvCnt+outCap.srvCntSize,coit->CntBlock,min);
 					outCap.srvCntSize+=min;
 				}

@@ -1,6 +1,6 @@
 #include "Interaction_List.h"
 
-Interaction_List::Interaction_List():_notlessthan50(_mutex),_status(ENABLED)
+Interaction_List::Interaction_List():_notlessthan100(_mutex),_status(ENABLED)
 {
 }
 
@@ -43,28 +43,23 @@ int Interaction_List::delete_one_interaction(interaction* in)
 	{
 		if (in->get_client_info()->content)
 		{
-			cout <<"---------------destruct clientinfo content"<<endl;
 			delete []in->get_client_info()->content;
 			in->get_client_info()->content=0;
 		}
-		cout <<"---------------destruct clientinfo"<<endl;
 		delete in->get_client_info();
 		in->set_client_info(0);
 	}
 	if (in->get_server_info())
 	{
-		cout <<"---------------destruct serverinfo"<<endl;
 		delete in->get_server_info();
 		in->set_server_info(0);
 	}
 	if (in->get_timeout_handler())
 	{
 		in->get_timeout_handler()->cancel_timer();
-		cout <<"---------------destruct timeout_handler"<<endl;
 		delete in->get_timeout_handler();
 		in->set_timeout_handler(0);
 	}
-	cout <<"---------------destruct interaction"<<endl;
 	delete in;
 	in=0;
 	return 0;
@@ -87,9 +82,9 @@ int Interaction_List::put(interaction* in)
 		return 1;
 	}
 	_inters.push_back(in);
-	if (_inters.size()>50)
+	if (_inters.size()>100)
 	{
-		_notlessthan50.signal();
+		_notlessthan100.signal();
 	}
 	return 0;
 }
@@ -100,9 +95,9 @@ int Interaction_List::pop(interaction** out)
 	{
 		return -1;
 	}
-	while(_inters.size()<50)
+	while(_inters.size()<100)
 	{
-		_notlessthan50.wait();
+		_notlessthan100.wait();
 		if (_status==DISABLED)
 		{
 			return 1;
@@ -155,7 +150,7 @@ int Interaction_List::disabled()
 {
 	my_ace_guard  guard(_mutex);
 	_status=DISABLED;
-	_notlessthan50.broadcast();
+	_notlessthan100.broadcast();
 	return 0;
 }
 int Interaction_List::enabled()

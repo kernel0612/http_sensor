@@ -114,6 +114,5 @@ int main(int argc,char** argv)
 	ins->register_tcp();
 	ins->run();
 	cap_http::destroy_instance();
-	system("pause");
 	return 0;
 };

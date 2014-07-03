@@ -22,6 +22,10 @@ cap_http::~cap_http(void)
 	{
 		delete _capContents_fifo;
 	}
+	if (_pccb)
+	{
+		delete _pccb;
+	}
 }
 
 int cap_http::init()
@@ -94,13 +98,13 @@ void http_protocol_callback(struct tcp_stream *tcp_http_connection, void **param
 	}
 	if (tcp_http_connection->nids_state == NIDS_CLOSE)
 	{
-	intern=ins->get_interaction_list().get_matched_interaction_m(saddr,daddr,sport);
-	if (intern)
-	{
-		intern->set_interactin_status(INTERACTION_CLOSE);
-	}	
-	return ;
-}
+		intern=ins->get_interaction_list().get_matched_interaction_m(saddr,daddr,sport);
+		if (intern)
+		{
+			intern->set_interactin_status(INTERACTION_CLOSE);
+		}	
+		return ;
+	}
 	if (tcp_http_connection->nids_state == NIDS_RESET)
 	{
 		intern=ins->get_interaction_list().get_matched_interaction_m(saddr,daddr,sport);
@@ -112,6 +116,7 @@ void http_protocol_callback(struct tcp_stream *tcp_http_connection, void **param
 	}
 	if (tcp_http_connection->nids_state == NIDS_DATA)
 	{
+		//cout <<"nids recv data..."<<endl;
 		struct half_stream *hlf;
 		if (tcp_http_connection->client.count_new)
 		{
@@ -137,7 +142,7 @@ void http_protocol_callback(struct tcp_stream *tcp_http_connection, void **param
 				{
 					cout <<"client fifo push back error"<<endl;
 				}
-				
+
 			}
 
 		}
@@ -165,7 +170,7 @@ void http_protocol_callback(struct tcp_stream *tcp_http_connection, void **param
 				{
 					cout <<"server fifo push back error"<<endl;
 				}
-				
+
 			}
 		}
 	}
@@ -223,7 +228,6 @@ void cap_http::parse_server_data(char content[], int number,char saddr[],char da
 				k=0;
 				if (strstr(temp, "GET")||strstr(temp,"POST"))  //方法暂时只取两种GET POST
 				{
-					//cout <<"here we got GET or POST "<<endl;
 					ret=create_one_interaction(&pinter);
 					if (ret==0)
 					{
@@ -279,8 +283,11 @@ void cap_http::parse_server_data(char content[], int number,char saddr[],char da
 				}
 				if (strstr(temp, "Cookie"))
 				{
-					//printf("Cookie is:%s\n", temp + strlen("Cookie: "));
-					//暂为空
+					seg=(temp + strlen("Cookie: "));
+					if (serinfo)
+					{
+						strncpy(serinfo->cookie,seg,my_min(strlen(seg),COOKIE_BUF_SIZE-1));
+					}
 				}
 				//temp operation end
 
@@ -296,7 +303,6 @@ void cap_http::parse_server_data(char content[], int number,char saddr[],char da
 						memcpy(entity_content,content+i+4,minSize=my_min(number-i-4,REQUEST_CONTENT_BUF_SIZE-1));
 						if (serinfo)
 						{
-							//strncpy(serinfo->content,entity_content,sizeof(serinfo->content)/sizeof(serinfo->content[0]));//1024
 							memcpy(serinfo->content,entity_content,minSize);
 							serinfo->cntSize+=minSize;
 						}
@@ -497,17 +503,19 @@ void cap_http::parse_content(void* args)
 	cap_http* ins=cap_http::get_instance();
 	ACE_Time_Value sleep_tv(0,5000);
 	struct CapContent cap;
-	struct cap_content_block  block;
+	
 	int ret=0;
 	ACE_DEBUG((LM_INFO,"parse content thread begin\n"));
 	while(!ins->_quit)
 	{
+		struct cap_content_block  block;
 		memset(&cap,0,sizeof(struct CapContent));
 		memset(&block,0,sizeof(struct cap_content_block));
 		ret=ins->get_capContents_fifo()->pop_front(block);
 		if (ret==0)
 		{
 			//cout <<block.CntBlock<<endl;
+			//cout <<"fifo pop"<<endl;
 			if (ins->get_proc_capCnt_block()->append_block_to_proccess(block,cap)==0)
 			{
 				if (cap.cliHasCnt)
@@ -564,7 +572,7 @@ int cap_http::run_monitor_thread()
 }
 int cap_http::create_one_interaction(interaction** one)
 {
-	if (!one)
+	if (!one||*one)
 	{
 		return -1;
 	}	
@@ -676,6 +684,7 @@ int cap_http::print_output_interaction(struct outputSerInfo* srv , struct output
 		printf("acceptEncode:%s\n",srv->accEncod);
 		printf("userAgent:%s\n",srv->userAgent);
 		printf("content:%s\n",srv->content);
+		printf("Cookie:%s\n",srv->cookie);
 	}
 	if (clt)
 	{
@@ -835,7 +844,7 @@ int cap_http::httpgzdecompress(Byte *zdata, uLong nzdata, Byte *data, uLong *nda
 				if((err = inflate(&d_stream, Z_NO_FLUSH)) != Z_OK)
 				{
 					printf("err: Z_data_error\n");
-					inflateEnd(&d_stream);
+					inflateEnd(&d_stream);          //必须调用  否则内存泄露
 					return -1;
 				}
 				printf("err: Z_not_OK\n");
@@ -854,21 +863,27 @@ int cap_http::httpgzdecompress(Byte *zdata, uLong nzdata, Byte *data, uLong *nda
 
 int cap_http::replace_str(char *sSrc, char *sMatchStr, char *sReplaceStr)   //替换匹配部分的字符串   只替换一次  使用host替换 ip
 {
-	int  StringLen;
-	char caNewString[2048];
-
+	int  StringLen=0;
+	char tmp[4096]={0};
+	int writeCopyhead=0;
+	int writeCopysRep=0;
+	int writeCopyLeft=0;
+	int matchstrlen=strlen(sMatchStr);
+	int replacstrlen=strlen(sReplaceStr);
+	int srcstrlen=strlen(sSrc);
 	char *FindPos = strstr(sSrc, sMatchStr);
 	if( (!FindPos) || (!sMatchStr) )
 		return -1;
 
 	if(FindPos)                      
 	{
-		memset(caNewString, 0,sizeof(caNewString));
+		memset(tmp, 0,sizeof(tmp));
 		StringLen = FindPos -sSrc;
-		strncpy(caNewString, sSrc, StringLen);                     
-		strcat(caNewString, sReplaceStr);
-		strcat(caNewString, FindPos + strlen(sMatchStr));           //假设 url中不含有'\0'
-		strcpy(sSrc, caNewString);
+		strncpy(tmp, sSrc, writeCopyhead=my_min(StringLen,4096-1));                     
+		strncat(tmp, sReplaceStr,writeCopysRep=my_min(replacstrlen,4096-writeCopyhead));
+		strncat(tmp, FindPos + matchstrlen,
+			writeCopyLeft=my_min(srcstrlen-StringLen-matchstrlen,4096-writeCopyhead-writeCopysRep));           //假设 url中不含有'\0'
+		strncpy(sSrc, tmp,my_min(strlen(tmp),URL_BUF_SIZE-1));
 	}
 
 	return 0;
@@ -960,7 +975,6 @@ void cap_http::output_interaction_data(void* args)
 				{
 					cout <<"process_output_method error"<<endl;
 				}
-				;
 				ins->print_output_interaction(&outsrv,&outclt);
 				
 			}
@@ -1035,12 +1049,6 @@ int cap_http::init_proc_interactions()
 	}
 	catch (...)
 	{
-		//if (poi)
-		//{
-		//	delete poi;
-		//}
-		//cout <<"init proc_interactions failed"<<endl;
-		//return -1;
 		cout <<"out of memory"<<endl;
 		::exit(1);
 	}
