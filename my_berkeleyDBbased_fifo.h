@@ -41,7 +41,7 @@ my_berkeleyDBbased_fifo<T>::~my_berkeleyDBbased_fifo(void)
 template<typename T>
 int my_berkeleyDBbased_fifo<T>::init()
 {
-	return _db.open("queue.db");
+	return _db.open("queue.db",DB_QUEUE);
 }
 template<typename T>
 int my_berkeleyDBbased_fifo<T>::push_back(T content)

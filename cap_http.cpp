@@ -1026,16 +1026,16 @@ int cap_http::init_proc_interactions()
 	proc_output_interaction* poi=0;
 	try
 	{
-		poi=new output_to_db;
-		if (poi)
-		{
-			if (poi->init()==0)
-			{
-				_proc_outputs.push_back(poi);
-			}	
-			else
-				return -1;
-		}
+		//poi=new output_to_db;
+		//if (poi)
+		//{
+		//	if (poi->init()==0)
+		//	{
+		//		_proc_outputs.push_back(poi);
+		//	}	
+		//	else
+		//		return -1;
+		//}
 		//poi=new output_to_file;
 		//if (poi)
 		//{
