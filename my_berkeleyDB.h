@@ -36,7 +36,6 @@ public:
 	static void *bdb_deadlock_detect_thread(void *arg);
 
 private:
-	void print_error(int ret);
 	DB* _db;
 	DB_ENV* _env;
 	int _bclose;

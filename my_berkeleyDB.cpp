@@ -6,6 +6,19 @@ my_berkeleyDB::my_berkeleyDB(void)
 	_env=0;
 	_bclose=0;
 	_bopen=0;
+	env_home=DBHOME;
+	cache_size=1024*1024;
+	txn_lg_bsize=32*1024;
+	log_auto_remove=0;
+	page_size=4096;
+	txn_nosync=0;
+	deadlock_detect_val=100*1000;
+	checkpoint_val=5*60;
+	mempool_trickle_val=30;
+	mempool_trickle_percent=60;
+	qstats_dump_val=30;
+	re_len=2048;
+	q_extentsize=16*1024;
 }
 
 my_berkeleyDB::~my_berkeleyDB(void)
@@ -15,93 +28,43 @@ my_berkeleyDB::~my_berkeleyDB(void)
 		this->close();
 	}
 }
-void my_berkeleyDB::print_error(int ret)
-{
-	if(ret != 0)
-		printf("ERROR: %s ",db_strerror(ret));
-}
+
 int my_berkeleyDB::open(const char* dbname,DBTYPE type)
 {
-	//if (_bopen)
-	//{
-	//	return -1;
-	//}
-	//int ret=0;
-	//init_bdb_settings();
-	//init_bdb_env();
-	//ret = db_create(&_db, _env, 0);
- //   if(0!=ret){
-	//	fprintf(stderr, "db_create: %s\n", db_strerror(ret));
-	//	exit(EXIT_FAILURE);
-	//}
-	//if (q_extentsize != 0){
-	//	ret = _db->set_q_extentsize(_db,q_extentsize);
-	//	if(0!=ret){
-	//		fprintf(stderr, "db_set_q_extentsize: %s\n", db_strerror(ret));
-	//		exit(EXIT_FAILURE);
-	//	}
-	//}
-	//ret = _db->set_re_len(_db, re_len);
-	//if(0!=ret){
-	//	fprintf(stderr, "db_set_re_len: %s\n", db_strerror(ret));
-	//	exit(EXIT_FAILURE);
-	//	return -1;
-	//}
-	//ret = _db->set_pagesize(_db,page_size);
-	//if(0!=ret){
-	//	fprintf(stderr, "db_set_pagesize: %s\n", db_strerror(ret));
-	//	exit(EXIT_FAILURE);
-	//	return -1;
-	//}
-	//ret = _db->open(_db, NULL, dbname, NULL, type, DB_CREATE, 0664); 
-	//if(0!=ret){
-	//	fprintf(stderr, "db_open: %s\n", db_strerror(ret));
-	//	exit(EXIT_FAILURE);
-	//	return -1;
-	//}
-	//_bopen=1;
-	//_bclose=0;
-	//start_deadlock_detect_thread();
-
 	if (!dbname)
 	{
 		//err
 		return -1;
 	}
 	int ret=0;
-	if ((ret=db_env_create(&_env,0))!=0)
-	{
-		return ret;
-	}
-	if (ret=_env->set_cachesize(_env,0,1024*1024,0)!=0)
-	{
-		return ret;
-	}
-	_env->set_errcall(_env, bdb_err_callback);
-	_env->set_msgcall(_env, bdb_msg_callback);
-	if (ret=_env->open(_env,"/home/xlf/bdbdata", DB_CREATE | DB_INIT_LOCK | DB_INIT_LOG | DB_INIT_MPOOL | DB_INIT_TXN, 0664) != 0)
-	{
-		return ret;
-	}	
-
+	init_bdb_settings();
+	init_bdb_env();
 	if (ret=db_create(&_db,_env,0)!=0)
 	{
-		//cout <<db_strerror(ret)<<endl;
-		return ret;
+		fprintf(stderr, "db_env_create: %s\n", db_strerror(ret));
+		exit(EXIT_FAILURE);
 	}
-	print_error(ret);
-	if (_db->set_re_len(_db, 2048) != 0)
-		perror("set_re_len");
-	if (_db->set_re_pad(_db, (int)0x00) != 0)
-		perror("set_re_pad");
-
-	if (_db->set_q_extentsize(_db, 16*1024) != 0)
-		perror("set_q_extentsize");
-	if (_db->set_pagesize(_db,4096)!=0)
+	if (ret=_db->set_re_len(_db, re_len) != 0)
 	{
-		perror("set_pagesize");
+		fprintf(stderr, "db_set_re_len: %s\n", db_strerror(ret));
+		exit(EXIT_FAILURE);
 	}
-	if (ret=_db->open(_db,NULL,dbname,NULL,DB_QUEUE,DB_CREATE,0664)!=0)  
+	if (ret=_db->set_re_pad(_db, (int)0x00) != 0)
+	{
+		fprintf(stderr, "db_set_re_pad: %s\n", db_strerror(ret));
+		exit(EXIT_FAILURE);
+	}
+	if (ret=_db->set_q_extentsize(_db, q_extentsize) != 0)
+	{
+		fprintf(stderr, "db_set_q_extentsize: %s\n", db_strerror(ret));
+		exit(EXIT_FAILURE);
+	}
+	if (ret=_db->set_pagesize(_db,page_size)!=0)
+	{
+		fprintf(stderr, "db_set_pagesize: %s\n", db_strerror(ret));
+		exit(EXIT_FAILURE);
+	}
+	if (ret=_db->open(_db,NULL,dbname,NULL,type,DB_CREATE,0664)!=0)  
 	{
 		fprintf(stderr, "db_open: %s\n", db_strerror(ret));
 		exit(EXIT_FAILURE);
@@ -109,7 +72,6 @@ int my_berkeleyDB::open(const char* dbname,DBTYPE type)
 	deadlock_detect_val=100*1000;
 	start_deadlock_detect_thread();
 	_bopen=1;
-	fprintf(stderr, "db open OK\n");
 	return ret;
 	
 	return 0;
@@ -260,10 +222,8 @@ void my_berkeleyDB::init_bdb_settings()
 void my_berkeleyDB::init_bdb_env()
 {
 	int ret;
-	u_int32_t env_flags = DB_CREATE
-		| DB_INIT_LOCK 
-		| DB_INIT_MPOOL 
-		| DB_INIT_LOG ;
+	u_int32_t env_flags = 
+	DB_CREATE | DB_INIT_LOCK | DB_INIT_LOG | DB_INIT_MPOOL | DB_INIT_TXN;
 	if ((ret = db_env_create(&_env, 0)) != 0)
 	{
 		fprintf(stderr, "db_env_create: %s\n", db_strerror(ret));
@@ -274,17 +234,17 @@ void my_berkeleyDB::init_bdb_env()
 	_env->set_cachesize(_env, 0,cache_size, 0);
 	if (txn_nosync)
 	{
-		//_env->set_flags(_env, DB_TXN_NOSYNC, 1);
+		_env->set_flags(_env, DB_TXN_NOSYNC, 1);
 	}
 	if (log_auto_remove) 
 	{
-		//_env->log_set_config(_env, DB_LOG_AUTO_REMOVE, 1);        
+		_env->log_set_config(_env, DB_LOG_AUTO_REMOVE, 1);        
 	}
-	/*	_env->set_lk_max_lockers(_env, 40000);
+	_env->set_lk_max_lockers(_env, 40000);
 	_env->set_lk_max_locks(_env, 40000);
 	_env->set_lk_max_objects(_env, 40000);
 	_env->set_tx_max(_env, 40000);
-	_env->set_lg_bsize(_env, txn_lg_bsize);*/
+	_env->set_lg_bsize(_env, txn_lg_bsize);
 
 	//if no home dir existed, we create it 
 		if (0 != access(env_home, F_OK)) 
@@ -353,11 +313,18 @@ void * my_berkeleyDB::bdb_deadlock_detect_thread(void *arg)
 	DB_ENV *dbenv=0;
 	struct timeval t;
 	dbenv = pthis->_env;
+	int ret=0;
 	fprintf(stderr, "db deadlock detect thread begin\n");
 	while (!pthis->_bclose) {
 		t.tv_sec = 0;
 		t.tv_usec =pthis->deadlock_detect_val;
-		(void)dbenv->lock_detect(dbenv, 0, DB_LOCK_YOUNGEST, NULL);
+		ret=dbenv->lock_detect(dbenv, 0, DB_LOCK_YOUNGEST, NULL);
+		if (ret!=0)
+		{
+			fprintf(stderr,"detect deadlock: %s\n",
+				strerror(errno));
+			exit(EXIT_FAILURE);
+		}
 		(void)select(0, NULL, NULL, NULL, &t);
 	}
 	fprintf(stderr, "db deadlock detect thread quit\n");
