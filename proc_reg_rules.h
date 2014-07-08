@@ -2,9 +2,10 @@
 #define PROC_REG_RULES_H
 #include <iostream>
 #include <string>
+#include <vector>
 #include "tinyxml.h"
 #include "regex_rules.h"
-//#include "Pcre.h"
+#include "Pcre.h"
 using namespace std;
 
 
@@ -18,8 +19,10 @@ public:
 	string excute_regex_rules();
 
 private:
-	//Pcre* _pcre;
-	//regex_rules _rules;
+	Pcre* _pcre;
+	regex_rules _rules;
+
+
 };
 
 #endif

@@ -649,7 +649,7 @@ int cap_http::print_one_interaction(interaction* in)
 			printf("content:%s\n",clt->content);	
 			if (clt->isChunked)
 			{
-				printf("transfer-encode is  chunke\n");
+				printf("transfer-encode is  chunked\n");
 			}
 			if (clt->isFilter)
 			{
@@ -1026,7 +1026,7 @@ int cap_http::init_proc_interactions()
 	proc_output_interaction* poi=0;
 	try
 	{
-		//poi=new output_to_db;
+		//poi=new output_to_db("127.0.0.1",5432,"http_sensor_db","postgres","nana1230",30);
 		//if (poi)
 		//{
 		//	if (poi->init()==0)

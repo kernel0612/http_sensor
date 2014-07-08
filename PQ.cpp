@@ -1,5 +1,5 @@
 #include "PQ.h"
-#include <ace/Log_Msg.h>
+//#include <ace/Log_Msg.h>
 
 PQ::PQ() : port_(0), connect_timeout_(0), conn_(NULL)
 {
@@ -16,10 +16,12 @@ int PQ::connect()
            this->hostaddr_, this->port_, this->dbname_, this->user_, this->passwd_, this->connect_timeout_);
 
   if ((this->conn_ = PQconnectdb(s)) == NULL) {
+	  fprintf(stderr,"%s",PQerrorMessage(conn_));
     return -1;
   }
 
   if (PQstatus(this->conn_) != CONNECTION_OK) {
+	  fprintf(stderr,"%s",PQerrorMessage(conn_));
     PQfinish(this->conn_);
     this->conn_ = NULL;
     return -1;
@@ -76,8 +78,10 @@ int PQ::exec(const char *sql)
 
   if ((res = PQexec(this->conn_, sql)) == NULL) {
     if (PQstatus(this->conn_) == CONNECTION_OK) {
+		fprintf(stderr,"%s",PQerrorMessage(conn_));
       return -1;
     } else {
+		fprintf(stderr,"%s",PQerrorMessage(conn_));
       return -2;
     }
   }
@@ -121,6 +125,7 @@ int PQ::execQuery(const char *sql, char *out, int outlen)
 
   if ((res = PQexec(this->conn_, sql)) == NULL) {
     if (PQstatus(this->conn_) == CONNECTION_OK) {
+		fprintf(stderr,"%s",PQerrorMessage(conn_));
       return -1;
     } else {
       return -2;
@@ -192,33 +197,29 @@ int PQ::copy(const char *sql, const char *records, uint32_t size)
   res = PQexec(this->conn_, sql);
 
   if (PQresultStatus(res) != PGRES_COPY_IN) {
+	  fprintf(stderr,"%s",PQerrorMessage(conn_));
     PQclear(res);
     return -1;
   }
 
   PQclear(res);
 
-  //  if (PQputCopyData(this->conn_, (char *)PQ::hdr_.head, sizeof(struct PQ::copydata_hdr)) < 0) {
-  //    return -2;
-  //  }
-
-  //  for (uint32_t i = 0; i < num; i++)
   if (PQputCopyData(this->conn_, (char *)records, size) < 0) {
+	  fprintf(stderr,"%s",PQerrorMessage(conn_));
     return -3;
   }
 
-  //  if (PQputCopyData(this->conn_, (char *)PQ::eof_, 2) < 0) {
-  //    return -4;
-  //  }
   char *err = NULL;
 
   if (PQputCopyEnd(this->conn_, err) < 0) {
+	  fprintf(stderr,"%s",PQerrorMessage(conn_));
     return -5;
   }
 
   res = PQgetResult(this->conn_);
 
   if (PQresultStatus(res) != PGRES_COMMAND_OK) {
+	  fprintf(stderr,"%s",PQerrorMessage(conn_));
     PQclear(res);
     return -6;
   }
@@ -241,10 +242,10 @@ int PQ::copy(const char *sql, const struct record *records, uint32_t num)
 
   for (uint32_t i = 0; i < num; i++)
     if (PQputCopyData(this->conn_, records[i].data, records[i].size) < 0) {
-      ACE_DEBUG((LM_ERROR, "PQ: PQputCopyData[%s]", records[i].data));
+      //ACE_DEBUG((LM_ERROR, "PQ: PQputCopyData[%s]", records[i].data));
       return -3;
     } else {
-      ACE_DEBUG((LM_DEBUG, "PQ: PQputCopyData[%s]", records[i].data));
+      //ACE_DEBUG((LM_DEBUG, "PQ: PQputCopyData[%s]", records[i].data));
     }
 
   char *err = NULL;

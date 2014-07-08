@@ -20,13 +20,10 @@ public:
 	Pcre();
 	~Pcre();
 
-	//Add a regrex, pass in name and regrex
 	int AddRule(const string &name, const string &patten);
 
-	//clear all the regrex
 	void ClearRules();
 
-	//match all the regrex, also return all the string match to every regrex
 	vector<MatchResult> MatchAllRule(const char content[]);
 
 private:
