@@ -10,7 +10,7 @@
 #include "proc_capCnt_block.h"
 #include "output_to_file.h"
 #include "output_to_db.h"
-//#include "proc_reg_rules.h"
+#include "proc_reg_rules.h"
 #include "nids.h"
 #include "uuid/uuid.h"
 #include "zlib.h"
@@ -80,7 +80,7 @@ private:
 	ACE_Thread_Mutex _clientinfo_mutex;
 	int _quit;
 	proc_capCnt_block* _pccb;
-	//proc_reg_rules _pcrr;
+	proc_reg_rules _pcrr;
 
 	vector<proc_output_interaction*> _proc_outputs;
 	ACE_thread_t _nids_loop_id;

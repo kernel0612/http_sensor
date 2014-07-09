@@ -35,8 +35,16 @@ void Pcre::ClearRules()
 	{
 		pcre_free(re_arr[i]); 
 	}
-	re_arr.clear();
-	patten_name.clear();
+	{
+		vector<pcre*> tmp;
+		re_arr.swap(tmp);
+	}
+	{
+		vector<string> tmp;
+		patten_name.swap(tmp);
+	}
+	//re_arr.clear();
+	//patten_name.clear();
 }
 
 vector<MatchResult> Pcre::MatchAllRule(const char content[])

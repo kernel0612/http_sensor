@@ -1,11 +1,7 @@
 #ifndef PROC_REG_RULES_H
 #define PROC_REG_RULES_H
-#include <iostream>
-#include <string>
-#include <vector>
-#include "tinyxml.h"
+
 #include "regex_rules.h"
-#include "Pcre.h"
 using namespace std;
 
 
@@ -16,11 +12,11 @@ public:
 	proc_reg_rules(void);
 	~proc_reg_rules(void);
 	int open_rules_xml(const char* xmlname);
-	string excute_regex_rules();
+	string excute_regex_rules(char srcContent[],size_t contentLen);
 
 private:
-	Pcre* _pcre;
-	regex_rules _rules;
+	
+	regex_rules* _rules;
 
 
 };

@@ -43,7 +43,12 @@ int cap_http::init()
 		return ret;
 	}
 	ret=init_proc_interactions();
-	//ret=_pcrr.open_rules_xml("rules.xml");
+	if (ret!=0)
+	{
+		cout <<"output to db proc init failed"<<endl;
+		return ret;
+	}
+	ret=_pcrr.open_rules_xml("rules.xml");
 	return ret;
 }
 int cap_http::run()
@@ -1109,11 +1114,11 @@ int cap_http::get_regex_content(char input[],unsigned int inlen,char output[],un
 	{
 		return -1;
 	}
-	//process
+	//process begin
 	string strRet="";
 	int retlen=0;
 	int minsize=0;
-//	strRet=_pcrr.excute_regex_rules();
+	strRet=_pcrr.excute_regex_rules(input,inlen);
 	retlen=strRet.length();
 	if (retlen>0)
 	{
@@ -1121,6 +1126,6 @@ int cap_http::get_regex_content(char input[],unsigned int inlen,char output[],un
 		outlen=minsize;
 		return 0;
 	}
-	//process
+	//process end
 	return -1;
 }
