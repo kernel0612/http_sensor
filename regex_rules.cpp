@@ -46,6 +46,11 @@ int regex_rules::open_rules_xml(const char* xmlname)
 					onesys.name=att->Value();
 					continue;
 				}
+				if (strcmp(att->Name(),"group")==0)
+				{
+					onesys.group=att->Value();
+					continue;
+				}
 				if (strcmp(att->Name(),"type")==0)
 				{
 					onesys.type=att->Value();
@@ -67,8 +72,8 @@ int regex_rules::open_rules_xml(const char* xmlname)
 				TiXmlAttribute* ruleAtt=rule->FirstAttribute();
 				if (ruleAtt)
 				{
-
 					//cout <<ruleAtt->Name()<<":"<<ruleAtt->Value()<<endl;
+					onerule.name=ruleAtt->Value();
 				}
 				TiXmlElement* child=rule->FirstChildElement();				
 				for (;child;child=child->NextSiblingElement())
@@ -94,7 +99,7 @@ int regex_rules::open_rules_xml(const char* xmlname)
 								reg.seg_or_replace=childatt->Value();
 								continue;
 							}
-							//cout <<childatt->Name()<<" "<<childatt->Value()<<endl;
+
 						}
 						onerule.regex_nodes.push_back(reg);
 						continue;
@@ -141,7 +146,6 @@ int regex_rules::open_rules_xml(const char* xmlname)
 								echo.seg_or_replace=childatt->Value();
 								continue;
 							}
-							//cout <<childatt->Name()<<" "<<childatt->Value()<<endl;
 						}
 						onerule.echo_nodes.push_back(echo);
 						continue;
@@ -189,7 +193,6 @@ string regex_rules::excute_regex_rules(char srcContent[],size_t contentLen)
 		for (co_rule_it=_rule_node.begin();co_rule_it!=_rule_node.end();++co_rule_it)
 		{
 			co_rule_it->name;
-
 			vector<regex_node>::const_iterator co_regex_node_it=
 				co_rule_it->regex_nodes.begin();
 			for (;co_regex_node_it!=co_rule_it->regex_nodes.end();++co_regex_node_it)
@@ -238,7 +241,7 @@ string regex_rules::excute_regex_rules(char srcContent[],size_t contentLen)
 						for (int j=0;j<match_echo_results[i].value.size();j++)
 						{
 							string  tmpresult=match_echo_results[i].value[j];
-							if (co_regex_node_it->seg_or_replace.empty())
+							if (co_echo_node_it->seg_or_replace.compare("")==0)
 							{
 								one_match_node.value.append(tmpresult);
 								one_match_node.value.append(";");
@@ -261,7 +264,6 @@ string regex_rules::excute_regex_rules(char srcContent[],size_t contentLen)
 	vector<regex_match_result_node>::const_iterator co_regex_match_ret_it;
 	for (co_sort_node_it=_sort_nodes.begin();co_sort_node_it!=_sort_nodes.end();++co_sort_node_it)
 	{
-
 		for (co_regex_match_ret_it=_regex_results.begin();co_regex_match_ret_it
 			!=_regex_results.end();++co_regex_match_ret_it)
 		{
@@ -320,7 +322,6 @@ int regex_rules::get_seq_relation(string strsrc)
 			break;
 		}
 	}
-	cout <<"sort complete"<<endl;
 	return 0;
 
 }

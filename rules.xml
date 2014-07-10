@@ -1,21 +1,21 @@
 <config>
     <sys name="boss" group="ultra" type="log"  seqrel="login,logout">
         <rule name="login">
+            <regex name="login" pattern="loginName=[\w+]*" rep="" />
             <regex name="login" pattern="loginName=[\w+]*" rep="login" />
             <regex name="login" pattern="loginName=[\w+]*" rep="login" />
-            <regex name="login" pattern="loginName=[\w+]*" rep="login" />
-            <echoswi switch="ON" />
+            <echoswi switch="1" />
             <echo name="login" context="up" pattern="loginName=[\w+]*"  rep="loginname" />
             <echo name="login" context="down"  pattern="logName=xxwe*"  rep="log" />
         </rule>
         <rule name="logout">
             <regex name="GetAction" pattern="GET [\S]*" rep="GetAction" id=""/>
-            <echoseq switch="ON" rel="UP=id,DOWN=id" />
+            <echoseq switch="0" rel="UP=id,DOWN=id" />
             <echo name="" pattern="" rep="" />
         </rule>
         <rule name="">
             <regex name="PostAction" pattern="POST [\S]*" rep="GetAction" id=""/>
-            <echoseq switch="ON" rel="UP=id,DOWN=id" />
+            <echoseq switch="1" rel="UP=id,DOWN=id" />
             <echo name="" pattern="" rep="" />
         </rule>
     </sys>
