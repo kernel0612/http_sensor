@@ -105,4 +105,5 @@ struct cap_content_block
 	unsigned short CurrBlockNum;
 	unsigned short TotalBlockNum;
 };
+
 #endif

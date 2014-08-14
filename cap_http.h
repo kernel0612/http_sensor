@@ -14,6 +14,7 @@
 #include "nids.h"
 #include "uuid/uuid.h"
 #include "zlib.h"
+#include "httpSession.h"
 
 class cap_http
 {
@@ -84,6 +85,9 @@ private:
 
 	vector<proc_output_interaction*> _proc_outputs;
 	ACE_thread_t _nids_loop_id;
+	
+
+	httpSession  _httpsession;
 };
 
 #endif

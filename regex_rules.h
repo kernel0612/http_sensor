@@ -58,7 +58,7 @@ public:
 	string excute_regex_rules(char srcContent[],size_t contentLen);
 
 protected:
-	int get_seq_relation(string strsrc);
+	int get_seq_relation(string strsrc);//ªÒ»°À≥–Ú
 	vector<system_node> _sys_nodes;
 	Pcre* _pcre;
 	vector<regex_match_result_node> _regex_results;

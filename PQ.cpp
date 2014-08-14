@@ -79,9 +79,11 @@ int PQ::exec(const char *sql)
   if ((res = PQexec(this->conn_, sql)) == NULL) {
     if (PQstatus(this->conn_) == CONNECTION_OK) {
 		fprintf(stderr,"%s",PQerrorMessage(conn_));
+		printf("exec error %s",PQerrorMessage(conn_));
       return -1;
     } else {
 		fprintf(stderr,"%s",PQerrorMessage(conn_));
+		printf("exec error %s",PQerrorMessage(conn_));
       return -2;
     }
   }
@@ -96,8 +98,10 @@ int PQ::exec(const char *sql)
   case PGRES_FATAL_ERROR:
   case PGRES_NONFATAL_ERROR:
     if (PQstatus(this->conn_) == CONNECTION_OK) {
+		printf("exec error %s",PQerrorMessage(conn_));
       ret = -1;
     } else {
+		printf("exec error %s",PQerrorMessage(conn_));
       ret = -2;
     }
 

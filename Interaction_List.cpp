@@ -1,6 +1,6 @@
 #include "Interaction_List.h"
 
-Interaction_List::Interaction_List():_notlessthan100(_mutex),_status(ENABLED)
+Interaction_List::Interaction_List():_notlessthan(_mutex),_status(ENABLED)
 {
 }
 
@@ -82,9 +82,9 @@ int Interaction_List::put(interaction* in)
 		return 1;
 	}
 	_inters.push_back(in);
-	if (_inters.size()>100)
+	if (_inters.size()>10)
 	{
-		_notlessthan100.signal();
+		_notlessthan.signal();
 	}
 	return 0;
 }
@@ -95,9 +95,9 @@ int Interaction_List::pop(interaction** out)
 	{
 		return -1;
 	}
-	while(_inters.size()<100)
+	while(_inters.size()<=10)
 	{
-		_notlessthan100.wait();
+		_notlessthan.wait();
 		if (_status==DISABLED)
 		{
 			return 1;
@@ -150,7 +150,7 @@ int Interaction_List::disabled()
 {
 	my_ace_guard  guard(_mutex);
 	_status=DISABLED;
-	_notlessthan100.broadcast();
+	_notlessthan.broadcast();
 	return 0;
 }
 int Interaction_List::enabled()
